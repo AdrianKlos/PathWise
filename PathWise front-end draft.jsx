@@ -1,0 +1,273 @@
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Dimensions,
+  ScrollView,
+  Modal 
+} from 'react-native';
+import MapView from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width, height } = Dimensions.get('window');
+
+const PathWiseApp = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showRouteInfo, setShowRouteInfo] = useState(false);
+  const [activeTab, setActiveTab] = useState('Map');
+
+  const SchaumburgRegion = {
+    latitude: 42.0334,
+    longitude: -88.0834,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  };
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      setShowRouteInfo(true);
+    }
+  };
+
+  const MenuItems = () => (
+    <View style={styles.menuContent}>
+      <TouchableOpacity 
+        style={[styles.menuItem, activeTab === 'Map' && styles.activeMenuItem]}
+        onPress={() => { setActiveTab('Map'); setIsMenuOpen(false); }}
+      >
+        <Text style={styles.menuText}>Map</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={[styles.menuItem, activeTab === 'Settings' && styles.activeMenuItem]}
+        onPress={() => { setActiveTab('Settings'); setIsMenuOpen(false); }}
+      >
+        <Text style={styles.menuText}>Settings</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={[styles.menuItem, activeTab === 'Credits' && styles.activeMenuItem]}
+        onPress={() => { setActiveTab('Credits'); setIsMenuOpen(false); }}
+      >
+        <Text style={styles.menuText}>Credits</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => setIsMenuOpen(true)}
+        >
+          <Ionicons name="menu" size={28} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.appTitle}>PathWise</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      {/* Main Content */}
+      <View style={styles.content}>
+        {activeTab === 'Map' ? (
+          <>
+            {/* Map */}
+            <MapView
+              style={styles.map}
+              initialRegion={SchaumburgRegion}
+              showsUserLocation={true}
+              showsMyLocationButton={true}
+            />
+            
+            {/* Route Information (Conditional) */}
+            {showRouteInfo && (
+              <View style={styles.routeInfo}>
+                <View style={styles.routeDetail}>
+                  <Text style={styles.routeLabel}>ETA:</Text>
+                  <Text style={styles.routeValue}>-- min</Text>
+                </View>
+                <View style={styles.routeDetail}>
+                  <Text style={styles.routeLabel}>Distance:</Text>
+                  <Text style={styles.routeValue}>-- miles</Text>
+                </View>
+                <View style={styles.routeDetail}>
+                  <Text style={styles.routeLabel}>Warnings:</Text>
+                  <Text style={styles.routeValue}>--</Text>
+                </View>
+              </View>
+            )}
+          </>
+        ) : activeTab === 'Settings' ? (
+          <View style={styles.tabContent}>
+            <Text style={styles.tabTitle}>Settings</Text>
+            {/* Settings content would go here */}
+          </View>
+        ) : (
+          <View style={styles.tabContent}>
+            <Text style={styles.tabTitle}>Credits</Text>
+            {/* Credits content would go here */}
+          </View>
+        )}
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Enter destination..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+          <Ionicons name="search" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Side Menu Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isMenuOpen}
+        onRequestClose={() => setIsMenuOpen(false)}
+      >
+        <TouchableOpacity 
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPressOut={() => setIsMenuOpen(false)}
+        >
+          <View style={styles.menuContainer}>
+            <MenuItems />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingTop: 50,
+    paddingBottom: 10,
+    backgroundColor: '#f8f8f8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  menuButton: {
+    padding: 5,
+  },
+  appTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  headerSpacer: {
+    width: 28,
+  },
+  content: {
+    flex: 1,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    padding: 15,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginRight: 10,
+    fontSize: 16,
+  },
+  searchButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  routeInfo: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 8,
+    padding: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  routeDetail: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  routeLabel: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  routeValue: {
+    color: '#666',
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  menuContainer: {
+    width: width * 0.7,
+    height: '100%',
+    backgroundColor: '#fff',
+  },
+  menuContent: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+  },
+  menuItem: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  activeMenuItem: {
+    backgroundColor: '#f0f8ff',
+  },
+  menuText: {
+    fontSize: 18,
+    color: '#333',
+  },
+  tabContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  tabTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+});
+
+export default PathWiseApp;
