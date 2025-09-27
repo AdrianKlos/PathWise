@@ -58,7 +58,6 @@ const PathWiseApp = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.menuButton}
@@ -70,11 +69,10 @@ const PathWiseApp = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Main Content */}
+      {/* Main screen */}
       <View style={styles.content}>
         {activeTab === 'Map' ? (
           <>
-            {/* Map */}
             <MapView
               style={styles.map}
               initialRegion={SchaumburgRegion}
@@ -82,7 +80,7 @@ const PathWiseApp = () => {
               showsMyLocationButton={true}
             />
             
-            {/* Route Information (Conditional) */}
+            {/* Route Information */}
             {showRouteInfo && (
               <View style={styles.routeInfo}>
                 <View style={styles.routeDetail}>
@@ -103,12 +101,12 @@ const PathWiseApp = () => {
         ) : activeTab === 'Settings' ? (
           <View style={styles.tabContent}>
             <Text style={styles.tabTitle}>Settings</Text>
-            {/* Settings content would go here */}
+            {/* Put settings here */}
           </View>
         ) : (
           <View style={styles.tabContent}>
             <Text style={styles.tabTitle}>Credits</Text>
-            {/* Credits content would go here */}
+            {/* Put credits here */}
           </View>
         )}
       </View>
