@@ -1,3 +1,9 @@
+{/*
+Dependencies required:
+
+expo install react-native-maps @expo/vector-icons
+*/}
+
 import React, { useState } from 'react';
 import { 
   View, 
