@@ -95,7 +95,7 @@ const PathWiseApp = () => {
                 </View>
                 <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>Distance:</Text>
-                  <Text style={styles.routeValue}>-- miles</Text>
+                  <Text style={styles.routeValue}>-- km</Text>
                 </View>
                 <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>Warnings:</Text>
