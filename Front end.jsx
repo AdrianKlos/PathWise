@@ -26,7 +26,7 @@ module.exports = function (api) {
   };
 };
 
-import myData from './geojson data.geojson' with { type: 'json' };
+const myData = require('./filtered.geojson');
 
 const { width, height } = Dimensions.get('window');
 
