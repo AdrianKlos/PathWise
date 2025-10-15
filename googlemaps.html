@@ -11,7 +11,7 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Helvetica', sans-serif;
       background-color: #f7f7f7;
       min-height: 100vh;
     }
@@ -102,7 +102,7 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
     // --- Global Variables and Constants ---
     const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM"; // Canvas will provide this API key at runtime.
     const BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
@@ -111,7 +111,8 @@
     let currentLocation = null; // [longitude, latitude] array
     let isAuthReady = false; // Flag for geocoding
 
-    import data from './filtered.geojson' assert { type: 'json' };
+    import myData from './filtered.geojson' with { type: 'json' };
+
 
     // --- DOM Elements ---
     const addressInput = document.getElementById('addressInput');
@@ -314,8 +315,8 @@ Longitude: ${lon.toFixed(6)}
         graph[j][i] = d;
       }
 
-      // Process GeoJSON features (MOCK_GEOJSON_DATA)
-      for (const feature of MOCK_GEOJSON_DATA.features) {
+      // Gets the Geojson data here:
+      for (const feature of myData.features) {
         const geom = feature.geometry;
 
         if (geom.type === "Point") {
@@ -394,4 +395,5 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
 
   </script>
 </body>
+
 </html>
