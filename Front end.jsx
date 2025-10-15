@@ -12,7 +12,6 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Dimensions,
-  ScrollView,
   Modal 
 } from 'react-native';
 import MapView from 'react-native-maps';
@@ -24,6 +23,8 @@ const PathWiseApp = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showRouteInfo, setShowRouteInfo] = useState(false);
+  const [showTransportOptions, setShowTransportOptions] = useState(false);
+  const [transportMethod, setTransportMethod] = useState(null);
   const [activeTab, setActiveTab] = useState('Map');
 
   const SchaumburgRegion = {
@@ -33,10 +34,27 @@ const PathWiseApp = () => {
     longitudeDelta: 0.0421,
   };
 
+  const calculateETA = (method) => {
+    const currentTime = new Date();
+    // Example calculation (when you guys finally integrate distance calculated):
+    // calculateTravelTime(method, distance, time spent waiting at crosswalks);
+    
+    return `TO DO: ${method} calculation at ${currentTime.toLocaleTimeString()}`;
+  };
+
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      setShowRouteInfo(true);
+      setShowTransportOptions(true);
+      setShowRouteInfo(false);
     }
+  };
+
+  const handleTransportSelect = (method) => {
+    setTransportMethod(method);
+    setShowTransportOptions(false);
+    setShowRouteInfo(true);
+    const eta = calculateETA(method);
+    console.log(eta); //test; will use later
   };
 
   const MenuItems = () => (
@@ -86,12 +104,36 @@ const PathWiseApp = () => {
               showsMyLocationButton={true}
             />
             
+            {/* Transport Options */}
+            {showTransportOptions && (
+              <View style={styles.transportOptions}>
+                <TouchableOpacity 
+                  style={[styles.transportButton, styles.walkingButton]}
+                  onPress={() => handleTransportSelect('Walking')}
+                >
+                  <Text style={styles.transportButtonText}>Walking</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.transportButton, styles.bikingButton]}
+                  onPress={() => handleTransportSelect('Biking')}
+                >
+                  <Text style={styles.transportButtonText}>Biking</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
             {/* Route Information */}
             {showRouteInfo && (
               <View style={styles.routeInfo}>
                 <View style={styles.routeDetail}>
+                  <Text style={styles.routeLabel}>Transport:</Text>
+                  <Text style={styles.routeValue}>{transportMethod}</Text>
+                </View>
+                <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>ETA:</Text>
-                  <Text style={styles.routeValue}>-- min</Text>
+                  <Text style={styles.routeValue}>
+                    {transportMethod ? calculateETA(transportMethod) : '-- min'}
+                  </Text>
                 </View>
                 <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>Distance:</Text>
@@ -118,6 +160,7 @@ const PathWiseApp = () => {
       </View>
 
       {/* Search Bar */}
+      {activeTab === 'Map' && (
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -127,9 +170,10 @@ const PathWiseApp = () => {
           onSubmitEditing={handleSearch}
         />
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Ionicons name="search" size={24} color="#fff" />
+        <Ionicons name="search" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
+  )}
 
       {/* Side Menu Modal */}
       <Modal
@@ -187,11 +231,19 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   searchContainer: {
+    position: 'absolute',
+    bottom: 40, // position of search bar
+    left: 15,
+    right: 15,
     flexDirection: 'row',
-    padding: 15,
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   searchInput: {
     flex: 1,
@@ -209,10 +261,44 @@ const styles = StyleSheet.create({
     padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    width: 50,
+  },
+  transportOptions: {
+    position: 'absolute',
+    top: 580, //position of transport module
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 25,
+    padding: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  transportButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginHorizontal: 10,
+  },
+  walkingButton: {
+    backgroundColor: '#4DA6FF',
+  },
+  bikingButton: {
+    backgroundColor: '#4DA6FF',
+  },
+  transportButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
   routeInfo: {
     position: 'absolute',
-    top: 20,
+    top: 90, //position of route module
     left: 20,
     right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
