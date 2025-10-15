@@ -17,15 +17,6 @@ import {
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 
-
-module.exports = function (api) {
-  api.cache(true);
-  return {
-    presets: ['module:@react-native/babel-preset'],
-    plugins: ['@babel/plugin-proposal-module-attributes'],
-  };
-};
-
 const myData = require('./filtered.geojson');
 
 const { width, height } = Dimensions.get('window');
