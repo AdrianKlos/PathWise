@@ -1,15 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GPS Routing Algorithm</title>
-</head>
 
-<body>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWKQW570XvTcFsG1voWIcFdjF6pZMjPgE&libraries=maps" async></script>
-  <script type="module">
     // --- Global Variables and Constants ---
     const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM"; // Canvas will provide this API key at runtime.
     const BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
@@ -17,10 +7,61 @@
 
     let currentLocation = null; // [longitude, latitude] array
     let isAuthReady = false; // Flag for geocoding
-    let enterAddress = prompt("Where would you like to go?")
-    let currentCoordsDisplay
+    let enterAddress = prompt("Where would you like to go?");
+    let currentCoordsDisplay;
+    let myData;
 
-    import myData from './filtered.geojson' with { type: 'json' };
+    // import myData from './filtered.geojson' with { type: 'json' };
+    
+async function init() {
+    try {
+        const response = await fetch('./filtered.geojson');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        // myData is assigned the entire GeoJSON object
+        myData = await response.json(); 
+        
+        // Ensure myData is a FeatureCollection and has the 'features' array
+        if (myData.type !== "FeatureCollection" || !Array.isArray(myData.features)) {
+            console.error("GeoJSON data is not a valid FeatureCollection.");
+            return;
+        }
+            console.log(`Starting graph creation for ${myData.features.length} features...`);
+            
+            // Start the routing code here
+            for (const feature of myData.features) {
+            const geom = feature.geometry;
+
+            if (geom.type === "Point") {
+                // [lon, lat] format
+                const coord = geom.coordinates;
+                getCoordIndex(coord); // Add point to coords array
+            } else if (geom.type === "LineString") {
+                const indices = [];
+                for (const coord of geom.coordinates) {
+                    indices.push(getCoordIndex(coord));
+                }
+                // Connect consecutive nodes in the LineString
+                for (let i = 0; i < indices.length - 1; i++) {
+                    addEdge(indices[i], indices[i + 1]);
+                }
+            }
+        }
+        
+        console.log("Graph creation complete!");
+        console.log("Graph Nodes:", coords);
+        console.log("Graph Edges:", graph);
+
+        // --- END ---
+
+    }catch (error) {
+        console.error('Failed to fetch data:', error);
+    }
+}
+
 
     /**
      * Haversine function (distance between two coords)
@@ -84,153 +125,155 @@
 
     // --- Main Logic Function ---
 
-    async function geocodeAndRoute() {
-      clearResults();
-      setLoading(true);
+//     async function geocodeAndRoute() {
 
-      if (!currentLocation) {
-        setLoading(false);
-        return console.log("Current location is not yet determined. Please wait or refresh.");
-      }
+//       if (!currentLocation) {
+//         return console.log("Current location is not yet determined. Please wait or refresh.");
+//       }
 
-      const address = enterAddress;
-      if (!address) {
-        setLoading(false);
-        return console.log("Please enter a destination address.");
-      }
+//       const address = enterAddress;
+//       if (!address) {
+//         return console.log("Please enter a destination address.");
+//       }
 
-      const geocodingUrl = new URL(BASE_URL);
-      geocodingUrl.searchParams.append('address', address);
-      geocodingUrl.searchParams.append('key', API_KEY);
+//       const geocodingUrl = new URL(BASE_URL);
+//       geocodingUrl.searchParams.append('address', address);
+//       geocodingUrl.searchParams.append('key', API_KEY);
 
-      let destinationCoords = null;
-      let formattedAddress = '';
+//       let destinationCoords = null;
+//       let formattedAddress = '';
 
-      // 1. Geocoding API Call
-      try {
-        const response = await fetch(geocodingUrl.toString());
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+//       // 1. Geocoding API Call
+//       try {
+//         const response = await fetch(geocodingUrl.toString());
+//         if (!response.ok) {
+//           throw new Error(`HTTP error! status: ${response.status}`);
+//         }
+//         const data = await response.json();
 
-        if (data.status === 'OK') {
-          const result = data.results[0];
-          const lat = result.geometry.location.lat;
-          const lon = result.geometry.location.lng;
-          formattedAddress = result.formatted_address;
-          // API returns [lon, lat]
-          destinationCoords = [lon, lat];
+//         if (data.status === 'OK') {
+//           const result = data.results[0];
+//           const lat = result.geometry.location.lat;
+//           const lon = result.geometry.location.lng;
+//           formattedAddress = result.formatted_address;
+//           // API returns [lon, lat]
+//           destinationCoords = [lon, lat];
 
-          const output = `
-Address: ${formattedAddress}
-Latitude: ${lat.toFixed(6)}
-Longitude: ${lon.toFixed(6)}
-                    `;
-          console.log(output)
+//           const output = `
+// Address: ${formattedAddress}
+// Latitude: ${lat.toFixed(6)}
+// Longitude: ${lon.toFixed(6)}
+//                     `;
+//           console.log(output)
 
-        } else {
-          throw new Error(`Geocoding failed. Status: ${data.status}. ${data.error_message || ''}`);
-        }
-      } catch (e) {
-        setLoading(false);
-        return showError(`Geocoding Error: ${e.message}`);
-      }
+//         } else {
+//           throw new Error(`Geocoding failed. Status: ${data.status}. ${data.error_message || ''}`);
+//         }
+//       } catch (e) {
+//         return showError(`Geocoding Error: ${e.message}`);
+//       }
 
-      // 2. Graph Construction and Closest Node Finding
-      const graph = {};
-      const coords = []; // Stores all unique [lon, lat] tuples/arrays
-      let closestNodeIndex = null;
-      let minDistanceToDestination = Infinity;
+//       // 2. Graph Construction and Closest Node Finding
+//       const graph = {};
+//       const coords = []; // Stores all unique [lon, lat] tuples/arrays
+//       let closestNodeIndex = null;
+//       let minDistanceToDestination = Infinity;
 
-      // Helper to get index or add new coordinate
-      function getCoordIndex(coord) {
-        // Check if coordinate already exists in the list
-        const existingIndex = coords.findIndex(c => c[0] === coord[0] && c[1] === coord[1]);
-        if (existingIndex !== -1) {
-          return existingIndex;
-        }
-        // Add new coordinate
-        coords.push(coord);
-        return coords.length - 1;
-      }
+//       // Helper to get index or add new coordinate
+//       function getCoordIndex(coord) {
+//         // Check if coordinate already exists in the list
+//         const existingIndex = coords.findIndex(c => c[0] === coord[0] && c[1] === coord[1]);
+//         if (existingIndex !== -1) {
+//           return existingIndex;
+//         }
+//         // Add new coordinate
+//         coords.push(coord);
+//         return coords.length - 1;
+//       }
 
-      // Helper to add edges to the graph
-      function addEdge(i, j) {
-        const d = haversine(coords[i], coords[j]);
+//       // Helper to add edges to the graph
+//       function addEdge(i, j) {
+//         const d = haversine(coords[i], coords[j]);
 
-        // Initialize the node entries if they don't exist
-        if (!graph[i]) graph[i] = {};
-        if (!graph[j]) graph[j] = {};
+//         // Initialize the node entries if they don't exist
+//         if (!graph[i]) graph[i] = {};
+//         if (!graph[j]) graph[j] = {};
 
-        // Update edge weights (distance)
-        graph[i][j] = d;
-        graph[j][i] = d;
-      }
+//         // Update edge weights (distance)
+//         graph[i][j] = d;
+//         graph[j][i] = d;
+//       }
 
-      // Gets the Geojson data here:
-      for (const feature of myData.features) {
-        const geom = feature.geometry;
+//       // Gets the Geojson data here:
+//       for (const feature of myData.features) {
+//         const geom = feature.geometry;
 
-        if (geom.type === "Point") {
-          // [lon, lat] format
-          const coord = geom.coordinates;
-          getCoordIndex(coord); // Add point to coords array
-        } else if (geom.type === "LineString") {
-          const indices = [];
-          for (const coord of geom.coordinates) {
-            indices.push(getCoordIndex(coord));
-          }
-          // Connect consecutive nodes in the LineString
-          for (let i = 0; i < indices.length - 1; i++) {
-            addEdge(indices[i], indices[i + 1]);
-          }
-        }
-      }
-      console.log("Graph Nodes:", coords);
-      console.log("Graph Edges:", graph);
+//         if (geom.type === "Point") {
+//           // [lon, lat] format
+//           const coord = geom.coordinates;
+//           getCoordIndex(coord); // Add point to coords array
+//         } else if (geom.type === "LineString") {
+//           const indices = [];
+//           for (const coord of geom.coordinates) {
+//             indices.push(getCoordIndex(coord));
+//           }
+//           // Connect consecutive nodes in the LineString
+//           for (let i = 0; i < indices.length - 1; i++) {
+//             addEdge(indices[i], indices[i + 1]);
+//           }
+//         }
+//       }
+//       console.log("Graph Nodes:", coords);
+//       console.log("Graph Edges:", graph);
 
 
-      // 3. Find the closest node in our network (coords) to the destination
-      coords.forEach((nodeCoord, index) => {
-        const distance = haversine(destinationCoords, nodeCoord);
-        if (distance < minDistanceToDestination) {
-          minDistanceToDestination = distance;  
-          closestNodeIndex = index;
-        }
-      });
+//       // 3. Find the closest node in our network (coords) to the destination
+//       coords.forEach((nodeCoord, index) => {
+//         const distance = haversine(destinationCoords, nodeCoord);
+//         if (distance < minDistanceToDestination) {
+//           minDistanceToDestination = distance;  
+//           closestNodeIndex = index;
+//         }
+//       });
 
-      // 4. Display Routing Results
-      let routingOutput = "";
+//       // 4. Display Routing Results
+//       let routingOutput = "";
 
-      if (closestNodeIndex !== null) {
-        const closestNodeCoord = coords[closestNodeIndex];
-        const [lon, lat] = closestNodeCoord;
+//       if (closestNodeIndex !== null) {
+//         const closestNodeCoord = coords[closestNodeIndex];
+//         const [lon, lat] = closestNodeCoord;
 
-        routingOutput = `
-Destination: ${formattedAddress}
-Destination Coords: [${destinationCoords[1].toFixed(6)}, ${destinationCoords[0].toFixed(6)}]
---- Closest Network Node Found ---
-Node Coords: [${lat.toFixed(6)}, ${lon.toFixed(6)}]
-Distance to Destination: ${minDistanceToDestination.toFixed(3)} km
-This node is the starting point for route calculation (Dijkstra's).
-Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0].toFixed(6)}]
-                `;
-      } else {
-        routingOutput = "Error: No nodes were found in the GeoJSON network to route from.";
-      }
+//         routingOutput = `
+// Destination: ${formattedAddress}
+// Destination Coords: [${destinationCoords[1].toFixed(6)}, ${destinationCoords[0].toFixed(6)}]
+// --- Closest Network Node Found ---
+// Node Coords: [${lat.toFixed(6)}, ${lon.toFixed(6)}]
+// Distance to Destination: ${minDistanceToDestination.toFixed(3)} km
+// This node is the starting point for route calculation (Dijkstra's).
+// Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0].toFixed(6)}]
+//                 `;
+//       } else {
+//         routingOutput = "Error: No nodes were found in the GeoJSON network to route from.";
+//       }
 
-      console.log(routingOutput)
-
-      // 5. Finalize
-      setLoading(false);
-    }
+//       console.log(routingOutput)
+//       geocodeAndRoute()
+//       // 5. Finalize
+//     }
 
     // --- Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-      getCurrentLocation();
-    });
+    // document.addEventListener('DOMContentLoaded', () => {
+    //   getCurrentLocation();
+    // });
 
-  </script>
-</body>
-</html>
+
+    async function initMap() {
+    const { Map } = await google.maps.importLibrary("maps");
+    const map = new Map(document.getElementById("map"), {
+        center: { lat: 37.42, lng: -122.1 },
+        zoom: 14,
+        mapId: "4504f8b37365c3d0",
+    });
+}
+
+    window.initMap = initMap; // required for callback
