@@ -4,108 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GPS Routing App</title>
-  <!-- Load Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-
-    body {
-      font-family: 'Helvetica', sans-serif;
-      background-color: #f7f7f7;
-      min-height: 100vh;
-    }
-
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    .card {
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    }
-
-    .loading {
-      border: 4px solid rgba(0, 0, 0, 0.1);
-      border-left-color: #4f46e5;
-      border-radius: 50%;
-      width: 1.5rem;
-      height: 1.5rem;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-  </style>
+  <title>GPS Routing Algorithm</title>
 </head>
 
-<body class="p-4">
-
-  <div id="app" class="container">
-    <header class="text-center py-6">
-      <h1 class="text-3xl font-bold text-gray-800">
-        Geolocation Router
-      </h1>
-      <p class="text-sm text-gray-500 mt-1">Python Logic converted to JavaScript</p>
-    </header>
-
-    <div class="card bg-white p-6 rounded-xl space-y-4">
-      <!-- Location Input -->
-      <div>
-        <label for="addressInput" class="block text-sm font-medium text-gray-700 mb-1">
-          Where would you like to go?
-        </label>
-        <input type="text" id="addressInput" placeholder="e.g., Chicago Navy Pier"
-          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
-          value="1600 Amphitheatre Parkway, Mountain View, CA">
-      </div>
-
-      <!-- Current Location Display -->
-      <div class="bg-indigo-50 p-3 rounded-lg text-sm text-indigo-700 border border-indigo-200">
-        <span class="font-semibold">Your Location:</span>
-        <span id="currentCoordsDisplay" class="ml-2 italic text-gray-600">
-          Awaiting GPS permission...
-        </span>
-      </div>
-
-      <!-- Action Button -->
-      <button id="routeButton"
-        class="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 disabled:opacity-50">
-        <span id="buttonText">Find Route & Closest Node</span>
-        <div id="loadingIndicator" class="loading hidden ml-3"></div>
-      </button>
-    </div>
-
-    <!-- Results Area -->
-    <div id="results" class="mt-8 space-y-4">
-      <div id="geocodingResult" class="card bg-white p-6 rounded-xl border border-gray-200 hidden">
-        <h2 class="text-xl font-semibold mb-2 text-gray-800">Destination Geocoding</h2>
-        <pre class="bg-gray-50 p-3 rounded-lg text-sm overflow-x-auto text-gray-700"></pre>
-      </div>
-
-      <div id="routingResult" class="card bg-white p-6 rounded-xl border border-gray-200 hidden">
-        <h2 class="text-xl font-semibold mb-2 text-gray-800">Routing Analysis (Closest Node)</h2>
-        <pre class="bg-gray-50 p-3 rounded-lg text-sm overflow-x-auto text-gray-700"></pre>
-        <p class="text-xs text-red-500 mt-2">
-          Note: Full Dijkstra's algorithm for pathfinding is not implemented, but the graph is built and the closest
-          node to the destination is found.
-        </p>
-      </div>
-
-      <div id="errorAlert" class="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg hidden" role="alert">
-        <p class="font-bold">Error</p>
-        <p id="errorMessage" class="text-sm"></p>
-      </div>
-    </div>
-  </div>
-    <gmp-map center="48.7946,-106.5348" zoom="4" map-id="DEMO_MAP_ID" style="height: 400px"></gmp-map>
-      <gmp-advanced-marker position="37.4220656,-122.0840897" title="Mountain View, CA"></gmp-advanced-marker>
-      <gmp-advanced-marker position="47.648994,-122.3503845" title="Seattle, WA"></gmp-advanced-marker>
-      </gmp-map>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWKQW570XvTcFsG1voWIcFdjF6pZMjPgE&libraries=maps" defer></script>
+<body>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWKQW570XvTcFsG1voWIcFdjF6pZMjPgE&libraries=maps" async></script>
   <script type="module">
     // --- Global Variables and Constants ---
     const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM"; // Canvas will provide this API key at runtime.
@@ -114,62 +17,10 @@
 
     let currentLocation = null; // [longitude, latitude] array
     let isAuthReady = false; // Flag for geocoding
+    let enterAddress = prompt("Where would you like to go?")
+    let currentCoordsDisplay
 
     import myData from './filtered.geojson' with { type: 'json' };
-
-    // --- DOM Elements ---
-    const addressInput = document.getElementById('addressInput');
-    const routeButton = document.getElementById('routeButton');
-    const currentCoordsDisplay = document.getElementById('currentCoordsDisplay');
-    const geocodingResultDiv = document.getElementById('geocodingResult');
-    const geocodingResultPre = geocodingResultDiv.querySelector('pre');
-    const routingResultDiv = document.getElementById('routingResult');
-    const routingResultPre = routingResultDiv.querySelector('pre');
-    const errorAlert = document.getElementById('errorAlert');
-    const errorMessageDisplay = document.getElementById('errorMessage');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const buttonText = document.getElementById('buttonText');
-    
-
-
-    // --- Utility Functions ---
-
-    /**
-     * Shows an error message in the dedicated alert box.
-     * @param {string} message - The error message to display.
-     */
-    function showError(message) {
-      errorMessageDisplay.textContent = message;
-      errorAlert.classList.remove('hidden');
-      geocodingResultDiv.classList.add('hidden');
-      routingResultDiv.classList.add('hidden');
-    }
-
-    /**
-     * Clears all results and errors.
-     */
-    function clearResults() {
-      errorAlert.classList.add('hidden');
-      geocodingResultDiv.classList.add('hidden');
-      routingResultDiv.classList.add('hidden');
-      geocodingResultPre.textContent = '';
-      routingResultPre.textContent = '';
-    }
-
-    /**
-     * Enables/disables the button and shows/hides the loading spinner.
-     * @param {boolean} isLoading - Whether the app is currently loading.
-     */
-    function setLoading(isLoading) {
-      routeButton.disabled = isLoading;
-      if (isLoading) {
-        loadingIndicator.classList.remove('hidden');
-        buttonText.textContent = 'Processing...';
-      } else {
-        loadingIndicator.classList.add('hidden');
-        buttonText.textContent = 'Find Route & Closest Node';
-      }
-    }
 
     /**
      * Haversine function (distance between two coords)
@@ -209,18 +60,18 @@
             ];
             const lat = position.coords.latitude.toFixed(6);
             const lon = position.coords.longitude.toFixed(6);
-            currentCoordsDisplay.textContent = `${lat}, ${lon}`;
+            currentCoordsDisplay = `${lat}, ${lon}`;
+            console.log(currentCoordsDisplay)
             isAuthReady = true;
-            routeButton.disabled = false;
             console.log("Current Location:", currentLocation);
           },
           (error) => {
             console.error("Geolocation error:", error);
             // Fallback to a hardcoded test location if permission is denied
             currentLocation = [-88.0531299984337, 42.0629624921386];
-            currentCoordsDisplay.textContent = `[-88.0531, 42.0629] (Using fallback test coordinates)`;
+            currentCoordsDisplay = `[-88.0531, 42.0629] (Using fallback test coordinates)`;
+            console.log(currentCoordsDisplay)
             isAuthReady = true;
-            routeButton.disabled = false;
             showError(`Could not get your live location (${error.message}). Using fallback coordinates for testing.`);
           }
         );
@@ -228,7 +79,6 @@
         currentCoordsDisplay.textContent = 'Geolocation is not supported by this browser. Using fallback test coordinates.';
         currentLocation = [-88.0531299984337, 42.0629624921386];
         isAuthReady = true;
-        routeButton.disabled = false;
       }
     }
 
@@ -240,13 +90,13 @@
 
       if (!currentLocation) {
         setLoading(false);
-        return showError("Current location is not yet determined. Please wait or refresh.");
+        return console.log("Current location is not yet determined. Please wait or refresh.");
       }
 
-      const address = addressInput.value.trim();
+      const address = enterAddress;
       if (!address) {
         setLoading(false);
-        return showError("Please enter a destination address.");
+        return console.log("Please enter a destination address.");
       }
 
       const geocodingUrl = new URL(BASE_URL);
@@ -277,8 +127,7 @@ Address: ${formattedAddress}
 Latitude: ${lat.toFixed(6)}
 Longitude: ${lon.toFixed(6)}
                     `;
-          geocodingResultPre.textContent = output.trim();
-          geocodingResultDiv.classList.remove('hidden');
+          console.log(output)
 
         } else {
           throw new Error(`Geocoding failed. Status: ${data.status}. ${data.error_message || ''}`);
@@ -361,11 +210,9 @@ Longitude: ${lon.toFixed(6)}
         routingOutput = `
 Destination: ${formattedAddress}
 Destination Coords: [${destinationCoords[1].toFixed(6)}, ${destinationCoords[0].toFixed(6)}]
-
 --- Closest Network Node Found ---
 Node Coords: [${lat.toFixed(6)}, ${lon.toFixed(6)}]
 Distance to Destination: ${minDistanceToDestination.toFixed(3)} km
-
 This node is the starting point for route calculation (Dijkstra's).
 Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0].toFixed(6)}]
                 `;
@@ -373,8 +220,7 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
         routingOutput = "Error: No nodes were found in the GeoJSON network to route from.";
       }
 
-      routingResultPre.textContent = routingOutput.trim();
-      routingResultDiv.classList.remove('hidden');
+      console.log(routingOutput)
 
       // 5. Finalize
       setLoading(false);
@@ -382,23 +228,9 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
 
     // --- Initialization ---
     document.addEventListener('DOMContentLoaded', () => {
-      // Initially disable the button until location is determined
-      routeButton.disabled = true;
       getCurrentLocation();
-
-      routeButton.addEventListener('click', geocodeAndRoute);
-
-      // Allow Enter key to trigger the route function
-      addressInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          geocodeAndRoute();
-        }
-      });
     });
 
   </script>
-
 </body>
-
 </html>
