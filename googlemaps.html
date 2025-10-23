@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualization</title>
+  <!-- <script src="./Algorithm.js"></script> -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f7f7f7;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .card {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .loading {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #4f46e5;
+      border-radius: 50%;
+      width: 1.5rem;
+      height: 1.5rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Visualization</h1>
+      <div id="map" style="height: 400px; width: 100%;"></div>
+      <script>
+
+        let latitude;
+        let longitude;
+
+        window.onload = function () {
+        getCurrentLocation()  
+        };
+
+          function getCurrentLocation() {
+              if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(success, error);
+              } else {
+                console.log("Geolocation is not supported by this browser.");
+              }
+            }
+
+            function success(position) {
+              console.log(`Current location: ${position.coords.latitude} + ${position.coords.longitude}`)
+              latitude = position.coords.latitude
+              longitude = position.coords.longitude
+              initMap(latitude, longitude)
+            }
+
+            function error(error) {
+                switch (error.code) {
+                  case error.PERMISSION_DENIED:
+                    console.log("Error")
+                    break;
+                  case error.POSITION_UNAVAILABLE:
+                    console.log("Error")
+                    break;
+                  case error.TIMEOUT:
+                   console.log("Error")
+                    break;
+                  case error.UNKNOWN_ERROR:
+                   console.log("Error")
+                    break;
+                }
+              }
+
+    // Define the route coordinates globally or before the function, 
+      // as they are the data output from your Dijkstra's algorithm.
+      const routeCoordinates = [
+        // Start: Golden Gate Bridge (SFO side)
+        { lat: 37.8199, lng: -122.4783 },
+        // Point 2: Lombard Street (the curvy part)
+        { lat: 37.8021, lng: -122.4189 },
+        // Point 3: Fisherman's Wharf
+        { lat: 37.8080, lng: -122.4177 },
+        // End: Coit Tower
+        { lat: 37.8024, lng: -122.4058 }
+      ];
+
+      function initMap(lat, lon) {
+        // ⚠️ Note: Your initial check uses 'latitude' and 'longitude' 
+        // but the function arguments are 'lat' and 'lon'. 
+        // I've fixed this to use the function arguments.
+        if (lat === undefined || lon === undefined) {
+          console.warn("Location not yet available.");
+          return;
+        }
+
+        const myLatlng = { lat: lat, lng: lon };
+
+        // 1. Map Initialization (The 'map' object is created here)
+        const map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 12, // Increased zoom for a local path
+          center: myLatlng,
+        });
+
+        // 2. Add User Marker (Your existing code)
+        new google.maps.Marker({
+          position: myLatlng,
+          map,
+          title: "Users Location",
+        });
+
+        // -----------------------------------------------------------------
+        // 3. Draw the Route (Polyline) -- MOVED INSIDE THE FUNCTION
+        // -----------------------------------------------------------------
+        if (routeCoordinates.length > 1) {
+          const routePath = new google.maps.Polyline({
+            path: routeCoordinates,
+            geodesic: true,
+            strokeColor: "#FF0000",
+            strokeOpacity: 1.0,
+            strokeWeight: 4,
+          });
+
+          // This now works because 'map' is defined right above it.
+          routePath.setMap(map);
+
+          // Optional: Center the map to fit the entire route
+          const bounds = new google.maps.LatLngBounds();
+          routeCoordinates.forEach(point => {
+            bounds.extend(point);
+          });
+          map.fitBounds(bounds);
+        }
+      }
+
+      </script>
+      <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWKQW570XvTcFsG1voWIcFdjF6pZMjPgE&callback=initMap" async></script>
+</body>
+</html>
