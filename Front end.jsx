@@ -53,13 +53,13 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      if (searchQuery === '') {
+      // if (searchQuery === '') {
 
       const data = await response.json();
       setSuggestions(data.suggestions || []);
-      setShowSuggestions(true);
 
-      }
+
+      // }
 
     } catch (error) {
       console.error('Error fetching suggestions:', error);
@@ -68,6 +68,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
       setIsLoading(false);
     }
     
+    setShowSuggestions(true);
 
   };
 
