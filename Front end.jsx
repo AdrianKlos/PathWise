@@ -16,16 +16,18 @@ const myData = require('./filtered.geojson');
 
 const { width, height } = Dimensions.get('window');
 
+// Global variable
+let suggestionsShown = true;
+
 const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21nenR5Y3NjMDlsYnUxcHk0bnp4MjZiZCJ9.TS-5g9W89OShPhJd3m5Meg';
-  // you better not steal my token...
 
   useEffect(() => {
-    if (searchQuery.length > 2) {
+    if (searchQuery.length > 2 && suggestionsShown) {
       const delayDebounceFn = setTimeout(() => {
         fetchSuggestions(searchQuery);
       }, 300);
@@ -38,8 +40,8 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   }, [searchQuery]);
 
   const fetchSuggestions = async (searchText) => {
-    if (!MAPBOX_ACCESS_TOKEN) {
-      console.warn('Please add your MapBox access token');
+    if (!MAPBOX_ACCESS_TOKEN || !suggestionsShown) {
+      console.warn('MapBox token missing or suggestions disabled');
       return;
     }
 
@@ -53,13 +55,8 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // if (searchQuery === '') {
-
       const data = await response.json();
       setSuggestions(data.suggestions || []);
-
-
-      // }
 
     } catch (error) {
       console.error('Error fetching suggestions:', error);
@@ -68,8 +65,9 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
       setIsLoading(false);
     }
     
-    setShowSuggestions(true);
-
+    if (suggestionsShown) {
+      setShowSuggestions(true);
+    }
   };
 
   const handleSuggestionSelect = async (suggestion) => {
@@ -93,6 +91,9 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
         const place = data.features[0];
         setSearchQuery(place.properties.full_address || place.properties.name);
         setShowSuggestions(false);
+        
+        suggestionsShown = false;
+        console.log('Suggestions disabled:', suggestionsShown);
         
         if (onPlaceSelect) {
           onPlaceSelect(place);
@@ -121,7 +122,11 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
           placeholder="Enter destination..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          onFocus={() => searchQuery.length > 2}
+          onFocus={() => {
+            if (searchQuery.length > 2 && suggestionsShown) {
+              setShowSuggestions(true);
+            }
+          }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
         />
         {isLoading && (
@@ -129,7 +134,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
         )}
       </View>
       
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && suggestions.length > 0 && suggestionsShown && (
         <View style={styles.suggestionsList}>
           <FlatList
             data={suggestions}
@@ -171,13 +176,8 @@ const PathWise = () => {
   };
 
   const handlePlaceSelect = (place) => {
-
     console.log('Selected place:', place);
     handleSearch();
-    
-    // For the back-end stuff:
-    // const coordinates = place.geometry.coordinates; // [lng, lat]
-    // const address = place.properties.full_address;
   };
 
   const handleTransportSelect = (method) => {
@@ -185,19 +185,16 @@ const PathWise = () => {
     setShowTransportOptions(false);
     setShowRouteInfo(true);
     const eta = calculateETA(method);
-    console.log(eta); //test; will use later
+    console.log(eta);
   };
 
   const pathFinding = (method) => {
-
     const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM";
     const BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
     const R = 6371;
 
     let currentLocation = null;
     let isAuthReady = false;
-
-    // rest of the pathfing code goes here
   };
 
   const MenuItems = () => (
@@ -236,7 +233,6 @@ const PathWise = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Main screen */}
       <View style={styles.content}>
         {activeTab === 'Map' ? (
           <>
@@ -247,7 +243,6 @@ const PathWise = () => {
               showsMyLocationButton={true}
             />
             
-            {/* Search Bar */}
             <View style={styles.searchContainer}>
               <MapBoxAutocomplete
                 searchQuery={searchQuery}
@@ -259,7 +254,6 @@ const PathWise = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Transport Options */}
             {showTransportOptions && (
               <View style={styles.transportOptions}>
                 <TouchableOpacity 
@@ -277,7 +271,6 @@ const PathWise = () => {
               </View>
             )}
             
-            {/* Route Information */}
             {showRouteInfo && (
               <View style={styles.routeInfo}>
                 <View style={styles.routeDetail}>
@@ -304,17 +297,14 @@ const PathWise = () => {
         ) : activeTab === 'Settings' ? (
           <View style={styles.tabContent}>
             <Text style={styles.tabTitle}>Settings</Text>
-            {/* Put settings here */}
           </View>
         ) : (
           <View style={styles.tabContent}>
             <Text style={styles.tabTitle}>Credits</Text>
-            {/* Put credits here */}
           </View>
         )}
       </View>
 
-      {/* Side Menu Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -384,7 +374,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  // Autocomplete styles
   autocompleteContainer: {
     flex: 1,
     position: 'relative',
@@ -428,7 +417,6 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    activeOpacity: 0.6,
   },
   suggestionTitle: {
     fontSize: 16,
@@ -449,7 +437,6 @@ const styles = StyleSheet.create({
     width: 50,
     marginLeft: 10,
   },
-
   transportOptions: {
     position: 'absolute',
     top: 90,
@@ -483,7 +470,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-
   routeInfo: {
     position: 'absolute',
     top: 160,
