@@ -1,10 +1,4 @@
-{/*
-Dependencies required:
-
-expo install react-native-maps @expo/vector-icons
-*/}
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,7 +6,8 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Dimensions,
-  Modal 
+  Modal,
+  FlatList
 } from 'react-native';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +16,139 @@ const myData = require('./filtered.geojson');
 
 const { width, height } = Dimensions.get('window');
 
-const PathWiseApp = () => {
+// Global variable
+let suggestionsShown = true;
+
+const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21nenR5Y3NjMDlsYnUxcHk0bnp4MjZiZCJ9.TS-5g9W89OShPhJd3m5Meg';
+
+  useEffect(() => {
+    if (searchQuery.length > 2 && suggestionsShown) {
+      const delayDebounceFn = setTimeout(() => {
+        fetchSuggestions(searchQuery);
+      }, 300);
+
+      return () => clearTimeout(delayDebounceFn);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [searchQuery]);
+
+  const fetchSuggestions = async (searchText) => {
+    if (!MAPBOX_ACCESS_TOKEN || !suggestionsShown) {
+      console.warn('MapBox token missing or suggestions disabled');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(searchText)}&access_token=${MAPBOX_ACCESS_TOKEN}&session_token=test-session&types=address,place,poi&country=us&proximity=-88.0834,42.0334&limit=5`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setSuggestions(data.suggestions || []);
+
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setSuggestions([]);
+    } finally {
+      setIsLoading(false);
+    }
+    
+    if (suggestionsShown) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleSuggestionSelect = async (suggestion) => {
+    if (!MAPBOX_ACCESS_TOKEN) {
+      console.warn('Please add your MapBox access token');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/search/searchbox/v1/retrieve/${suggestion.mapbox_id}?session_token=test-session&access_token=${MAPBOX_ACCESS_TOKEN}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.features && data.features[0]) {
+        const place = data.features[0];
+        setSearchQuery(place.properties.full_address || place.properties.name);
+        setShowSuggestions(false);
+        
+        suggestionsShown = false;
+        console.log('Suggestions disabled:', suggestionsShown);
+        
+        if (onPlaceSelect) {
+          onPlaceSelect(place);
+        }
+      }
+    } catch (error) {
+      console.error('Error retrieving place details:', error);
+    }
+  };
+
+  const renderSuggestion = ({ item }) => (
+    <TouchableOpacity
+      style={styles.suggestionItem}
+      onPress={() => handleSuggestionSelect(item)}
+    >
+      <Text style={styles.suggestionTitle}>{item.name}</Text>
+      <Text style={styles.suggestionAddress}>{item.place_formatted}</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.autocompleteContainer}>
+      <View style={styles.searchInputContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Enter destination..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onFocus={() => {
+            if (searchQuery.length > 2 && suggestionsShown) {
+              setShowSuggestions(true);
+            }
+          }}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+        />
+        {isLoading && (
+          <Text style={styles.loadingText}>Searching...</Text>
+        )}
+      </View>
+      
+      {showSuggestions && suggestions.length > 0 && suggestionsShown && (
+        <View style={styles.suggestionsList}>
+          <FlatList
+            data={suggestions}
+            renderItem={renderSuggestion}
+            keyExtractor={(item, index) => item.mapbox_id || index.toString()}
+            keyboardShouldPersistTaps="always"
+          />
+        </View>
+      )}
+    </View>
+  );
+};
+
+const PathWise = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showRouteInfo, setShowRouteInfo] = useState(false);
@@ -38,9 +165,6 @@ const PathWiseApp = () => {
 
   const calculateETA = (method) => {
     const currentTime = new Date();
-    // Example calculation (when you guys finally integrate distance calculated):
-    // calculateTravelTime(method, distance, time spent waiting at crosswalks);
-    
     return `TO DO: ${method} calculation at ${currentTime.toLocaleTimeString()}`;
   };
 
@@ -51,304 +175,26 @@ const PathWiseApp = () => {
     }
   };
 
+  const handlePlaceSelect = (place) => {
+    console.log('Selected place:', place);
+    handleSearch();
+  };
+
   const handleTransportSelect = (method) => {
     setTransportMethod(method);
     setShowTransportOptions(false);
     setShowRouteInfo(true);
     const eta = calculateETA(method);
-    console.log(eta); //test; will use later
+    console.log(eta);
   };
 
-    const pathFinding = (method) => {
-    
-      
-    const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM"; // Canvas will provide this API key at runtime.
+  const pathFinding = (method) => {
+    const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM";
     const BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
-    const R = 6371; // Earth radius in km
+    const R = 6371;
 
-    let currentLocation = null; // [longitude, latitude] array
-    let isAuthReady = false; // Flag for geocoding
-
-    // --- DOM Elements ---
-    const addressInput = document.getElementById('addressInput');
-    const routeButton = document.getElementById('routeButton');
-    const currentCoordsDisplay = document.getElementById('currentCoordsDisplay');
-    const geocodingResultDiv = document.getElementById('geocodingResult');
-    const geocodingResultPre = geocodingResultDiv.querySelector('pre');
-    const routingResultDiv = document.getElementById('routingResult');
-    const routingResultPre = routingResultDiv.querySelector('pre');
-    const errorAlert = document.getElementById('errorAlert');
-    const errorMessageDisplay = document.getElementById('errorMessage');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const buttonText = document.getElementById('buttonText');
-
-
-    // --- Utility Functions ---
-
-    /**
-     * Shows an error message in the dedicated alert box.
-     * @param {string} message - The error message to display.
-     */
-    function showError(message) {
-      errorMessageDisplay.textContent = message;
-      errorAlert.classList.remove('hidden');
-      geocodingResultDiv.classList.add('hidden');
-      routingResultDiv.classList.add('hidden');
-    }
-
-    /**
-     * Clears all results and errors.
-     */
-    function clearResults() {
-      errorAlert.classList.add('hidden');
-      geocodingResultDiv.classList.add('hidden');
-      routingResultDiv.classList.add('hidden');
-      geocodingResultPre.textContent = '';
-      routingResultPre.textContent = '';
-    }
-
-    /**
-     * Enables/disables the button and shows/hides the loading spinner.
-     * @param {boolean} isLoading - Whether the app is currently loading.
-     */
-    function setLoading(isLoading) {
-      routeButton.disabled = isLoading;
-      if (isLoading) {
-        loadingIndicator.classList.remove('hidden');
-        buttonText.textContent = 'Processing...';
-      } else {
-        loadingIndicator.classList.add('hidden');
-        buttonText.textContent = 'Find Route & Closest Node';
-      }
-    }
-
-    /**
-     * Haversine function (distance between two coords)
-     * @param {number[]} coord1 - [lon1, lat1]
-     * @param {number[]} coord2 - [lon2, lat2]
-     * @returns {number} Distance in kilometers.
-     */
-    function haversine(coord1, coord2) {
-      const [lon1, lat1] = coord1;
-      const [lon2, lat2] = coord2;
-
-      const toRad = (degree) => (degree * Math.PI) / 180;
-
-      const dlon = toRad(lon2 - lon1);
-      const dlat = toRad(lat2 - lat1);
-
-      const a = Math.sin(dlat / 2) ** 2 +
-        Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dlon / 2) ** 2;
-
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c; // Distance in km
-    }
-
-    /**
-     * Uses the HTML Geolocation API to get the user's current coordinates.
-     */
-    function getCurrentLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            // Coordinates in [lon, lat] format (standard GeoJSON/API order)
-            currentLocation = [
-              position.coords.longitude,
-              position.coords.latitude
-            ];
-            const lat = position.coords.latitude.toFixed(6);
-            const lon = position.coords.longitude.toFixed(6);
-            currentCoordsDisplay.textContent = `${lat}, ${lon}`;
-            isAuthReady = true;
-            routeButton.disabled = false;
-            console.log("Current Location:", currentLocation);
-          },
-          (error) => {
-            console.error("Geolocation error:", error);
-            // Fallback to a hardcoded test location if permission is denied
-            currentLocation = [-88.0531299984337, 42.0629624921386];
-            currentCoordsDisplay.textContent = `[-88.0531, 42.0629] (Using fallback test coordinates)`;
-            isAuthReady = true;
-            routeButton.disabled = false;
-            showError(`Could not get your live location (${error.message}). Using fallback coordinates for testing.`);
-          }
-        );
-      } else {
-        currentCoordsDisplay.textContent = 'Geolocation is not supported by this browser. Using fallback test coordinates.';
-        currentLocation = [-88.0531299984337, 42.0629624921386];
-        isAuthReady = true;
-        routeButton.disabled = false;
-      }
-    }
-
-    // --- Main Logic Function ---
-
-    async function geocodeAndRoute() {
-      clearResults();
-      setLoading(true);
-
-      if (!currentLocation) {
-        setLoading(false);
-        return showError("Current location is not yet determined. Please wait or refresh.");
-      }
-
-      const address = addressInput.value.trim();
-      if (!address) {
-        setLoading(false);
-        return showError("Please enter a destination address.");
-      }
-
-      const geocodingUrl = new URL(BASE_URL);
-      geocodingUrl.searchParams.append('address', address);
-      geocodingUrl.searchParams.append('key', API_KEY);
-
-      let destinationCoords = null;
-      let formattedAddress = '';
-
-      // 1. Geocoding API Call
-      try {
-        const response = await fetch(geocodingUrl.toString());
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-
-        if (data.status === 'OK') {
-          const result = data.results[0];
-          const lat = result.geometry.location.lat;
-          const lon = result.geometry.location.lng;
-          formattedAddress = result.formatted_address;
-          // API returns [lon, lat]
-          destinationCoords = [lon, lat];
-
-          const output = `
-Address: ${formattedAddress}
-Latitude: ${lat.toFixed(6)}
-Longitude: ${lon.toFixed(6)}
-                    `;
-          geocodingResultPre.textContent = output.trim();
-          geocodingResultDiv.classList.remove('hidden');
-
-        } else {
-          throw new Error(`Geocoding failed. Status: ${data.status}. ${data.error_message || ''}`);
-        }
-      } catch (e) {
-        setLoading(false);
-        return showError(`Geocoding Error: ${e.message}`);
-      }
-
-      // 2. Graph Construction and Closest Node Finding
-      const graph = {};
-      const coords = []; // Stores all unique [lon, lat] tuples/arrays
-      let closestNodeIndex = null;
-      let minDistanceToDestination = Infinity;
-
-      // Helper to get index or add new coordinate
-      function getCoordIndex(coord) {
-        // Check if coordinate already exists in the list
-        const existingIndex = coords.findIndex(c => c[0] === coord[0] && c[1] === coord[1]);
-        if (existingIndex !== -1) {
-          return existingIndex;
-        }
-        // Add new coordinate
-        coords.push(coord);
-        return coords.length - 1;
-      }
-
-      // Helper to add edges to the graph
-      function addEdge(i, j) {
-        const d = haversine(coords[i], coords[j]);
-
-        // Initialize the node entries if they don't exist
-        if (!graph[i]) graph[i] = {};
-        if (!graph[j]) graph[j] = {};
-
-        // Update edge weights (distance)
-        graph[i][j] = d;
-        graph[j][i] = d;
-      }
-
-      // Gets the Geojson data here:
-      for (const feature of myData.features) {
-        const geom = feature.geometry;
-
-        if (geom.type === "Point") {
-          // [lon, lat] format
-          const coord = geom.coordinates;
-          getCoordIndex(coord); // Add point to coords array
-        } else if (geom.type === "LineString") {
-          const indices = [];
-          for (const coord of geom.coordinates) {
-            indices.push(getCoordIndex(coord));
-          }
-          // Connect consecutive nodes in the LineString
-          for (let i = 0; i < indices.length - 1; i++) {
-            addEdge(indices[i], indices[i + 1]);
-          }
-        }
-      }
-      console.log("Graph Nodes:", coords);
-      console.log("Graph Edges:", graph);
-
-
-      // 3. Find the closest node in our network (coords) to the destination
-      coords.forEach((nodeCoord, index) => {
-        const distance = haversine(destinationCoords, nodeCoord);
-        if (distance < minDistanceToDestination) {
-          minDistanceToDestination = distance;
-          closestNodeIndex = index;
-        }
-      });
-
-      // 4. Display Routing Results
-      let routingOutput = "";
-
-      if (closestNodeIndex !== null) {
-        const closestNodeCoord = coords[closestNodeIndex];
-        const [lon, lat] = closestNodeCoord;
-
-        routingOutput = `
-Destination: ${formattedAddress}
-Destination Coords: [${destinationCoords[1].toFixed(6)}, ${destinationCoords[0].toFixed(6)}]
-
---- Closest Network Node Found ---
-Node Coords: [${lat.toFixed(6)}, ${lon.toFixed(6)}]
-Distance to Destination: ${minDistanceToDestination.toFixed(3)} km
-
-This node is the starting point for route calculation (Dijkstra's).
-Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0].toFixed(6)}]
-                `;
-      } else {
-        routingOutput = "Error: No nodes were found in the GeoJSON network to route from.";
-      }
-
-      routingResultPre.textContent = routingOutput.trim();
-      routingResultDiv.classList.remove('hidden');
-
-      // 5. Finalize
-      setLoading(false);
-    }
-
-    // --- Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-      // Initially disable the button until location is determined
-      routeButton.disabled = true;
-      getCurrentLocation();
-
-      routeButton.addEventListener('click', geocodeAndRoute);
-
-      // Allow Enter key to trigger the route function
-      addressInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          geocodeAndRoute();
-        }
-      });
-    });
-
-
+    let currentLocation = null;
+    let isAuthReady = false;
   };
 
   const MenuItems = () => (
@@ -387,7 +233,6 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Main screen */}
       <View style={styles.content}>
         {activeTab === 'Map' ? (
           <>
@@ -398,7 +243,17 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
               showsMyLocationButton={true}
             />
             
-            {/* Transport Options */}
+            <View style={styles.searchContainer}>
+              <MapBoxAutocomplete
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                onPlaceSelect={handlePlaceSelect}
+              />
+              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+                <Ionicons name="search" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
             {showTransportOptions && (
               <View style={styles.transportOptions}>
                 <TouchableOpacity 
@@ -416,7 +271,6 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
               </View>
             )}
             
-            {/* Route Information */}
             {showRouteInfo && (
               <View style={styles.routeInfo}>
                 <View style={styles.routeDetail}>
@@ -443,33 +297,14 @@ Current Location (Start): [${currentLocation[1].toFixed(6)}, ${currentLocation[0
         ) : activeTab === 'Settings' ? (
           <View style={styles.tabContent}>
             <Text style={styles.tabTitle}>Settings</Text>
-            {/* Put settings here */}
           </View>
         ) : (
           <View style={styles.tabContent}>
             <Text style={styles.tabTitle}>Credits</Text>
-            {/* Put credits here */}
           </View>
         )}
       </View>
 
-      {/* Search Bar */}
-      {activeTab === 'Map' && (
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Enter destination..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch}
-        />
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-        <Ionicons name="search" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-  )}
-
-      {/* Side Menu Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -526,7 +361,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     position: 'absolute',
-    bottom: 40, // position of search bar
+    top: 20,
     left: 15,
     right: 15,
     flexDirection: 'row',
@@ -539,15 +374,59 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  searchInput: {
+  autocompleteContainer: {
     flex: 1,
+    position: 'relative',
+  },
+  searchInputContainer: {
+    position: 'relative',
+  },
+  searchInput: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 12,
-    marginRight: 10,
     fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    position: 'absolute',
+    right: 10,
+    top: 12,
+    fontSize: 12,
+    color: '#666',
+  },
+  suggestionsList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginTop: 5,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    maxHeight: 200,
+    zIndex: 1000,
+  },
+  suggestionItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  suggestionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  suggestionAddress: {
+    fontSize: 14,
+    color: '#666',
   },
   searchButton: {
     backgroundColor: '#007AFF',
@@ -556,10 +435,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 50,
+    marginLeft: 10,
   },
   transportOptions: {
     position: 'absolute',
-    top: 580, //position of transport module
+    top: 90,
     left: 20,
     right: 20,
     flexDirection: 'row',
@@ -592,7 +472,7 @@ const styles = StyleSheet.create({
   },
   routeInfo: {
     position: 'absolute',
-    top: 90, //position of route module
+    top: 160,
     left: 20,
     right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -654,4 +534,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PathWiseApp;
+export default PathWise;
