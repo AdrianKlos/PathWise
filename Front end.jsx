@@ -24,7 +24,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21nenR5Y3NjMDlsYnUxcHk0bnp4MjZiZCJ9.TS-5g9W89OShPhJd3m5Meg';
+  const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21oNmxvaDY0MGp6YjJucHdpYW4zNzY1ZyJ9.89-yt1jBAGLqEpzJ3iuEgw';
 
   useEffect(() => {
     if (searchQuery.length > 2 && suggestionsShown) {
