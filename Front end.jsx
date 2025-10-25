@@ -195,6 +195,160 @@ const PathWise = () => {
 
     let currentLocation = null;
     let isAuthReady = false;
+
+            let latitude, longitude;
+        let routeCoordinates = []; // will be populated from GeoJSON + Dijkstra
+
+        const pointB = { lat: 41.9955, lng: -88.0838 }; // Schaumburg Library
+
+        window.onload = function () {
+            getCurrentLocation();
+            loadAndProcessGeoJSON();
+        };
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(success, error);
+            } else {
+                console.log("Geolocation not supported.");
+            }
+        }
+
+        function success(position) {
+            latitude = position.coords.latitude;
+            longitude = position.coords.longitude;
+            if (routeCoordinates.length) {
+                initMap(latitude, longitude);
+            }
+        }
+
+        function error(err) {
+            console.log("Location error:", err);
+        }
+
+        async function loadAndProcessGeoJSON() {
+            const response = await fetch('filtered.geojson');
+            const data = await response.json();
+
+            const graph = {};
+
+            // Build graph from all LineString features
+            data.features.forEach(feature => {
+                if (feature.geometry.type === 'LineString') {
+                    const coords = feature.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+                    for (let i = 0; i < coords.length; i++) {
+                        const key = `${coords[i].lat},${coords[i].lng}`;
+                        if (!graph[key]) graph[key] = [];
+                        if (i > 0) {
+                            const prevKey = `${coords[i - 1].lat},${coords[i - 1].lng}`;
+                            const dist = haversineDistance(coords[i - 1], coords[i]);
+                            graph[key].push({ node: prevKey, weight: dist });
+                            graph[prevKey].push({ node: key, weight: dist });
+                        }
+                    }
+                }
+            });
+
+            // Find nearest nodes to current location (Point A) and pointB
+            const pointAKey = findNearestNode(graph, { lat: latitude || 0, lng: longitude || 0 });
+            const pointBKey = findNearestNode(graph, pointB);
+
+            // Compute shortest path
+            const path = dijkstra(graph, pointAKey, pointBKey);
+            routeCoordinates = path.map(p => {
+                const [lat, lng] = p.split(',');
+                return { lat: parseFloat(lat), lng: parseFloat(lng) };
+            });
+
+            if (latitude && longitude) {
+                initMap(latitude, longitude);
+            }
+        }
+
+        function findNearestNode(graph, point) {
+            let nearest = null;
+            let minDist = Infinity;
+            Object.keys(graph).forEach(key => {
+                const [lat, lng] = key.split(',').map(Number);
+                const d = haversineDistance({ lat, lng }, point);
+                if (d < minDist) {
+                    minDist = d;
+                    nearest = key;
+                }
+            });
+            return nearest;
+        }
+
+        function haversineDistance(a, b) {
+            const R = 6371e3;
+            const φ1 = a.lat * Math.PI / 180;
+            const φ2 = b.lat * Math.PI / 180;
+            const Δφ = (b.lat - a.lat) * Math.PI / 180;
+            const Δλ = (b.lng - a.lng) * Math.PI / 180;
+            const x = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(x));
+        }
+
+        function dijkstra(graph, start, end) {
+            const distances = {};
+            const prev = {};
+            const pq = new Set(Object.keys(graph));
+            Object.keys(graph).forEach(node => distances[node] = Infinity);
+            distances[start] = 0;
+
+            while (pq.size) {
+                const current = [...pq].reduce((a, b) => distances[a] < distances[b] ? a : b);
+                pq.delete(current);
+                if (current === end) break;
+
+                graph[current].forEach(neighbor => {
+                    const alt = distances[current] + neighbor.weight;
+                    if (alt < distances[neighbor.node]) {
+                        distances[neighbor.node] = alt;
+                        prev[neighbor.node] = current;
+                    }
+                });
+            }
+
+            const path = [];
+            let curr = end;
+            while (curr) {
+                path.unshift(curr);
+                curr = prev[curr];
+            }
+            return path;
+        }
+
+        function initMap(lat, lon) {
+            if (lat === undefined || lon === undefined) return;
+
+            const myLatlng = { lat, lng: lon };
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 14,
+                center: myLatlng
+            });
+
+            new google.maps.Marker({
+                position: myLatlng,
+                map,
+                title: "Your Location"
+            });
+
+            if (routeCoordinates.length > 1) {
+                const routePath = new google.maps.Polyline({
+                    path: routeCoordinates,
+                    geodesic: true,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 4
+                });
+                routePath.setMap(map);
+
+                const bounds = new google.maps.LatLngBounds();
+                routeCoordinates.forEach(point => bounds.extend(point));
+                map.fitBounds(bounds);
+            }
+        }
   };
 
   const MenuItems = () => (
