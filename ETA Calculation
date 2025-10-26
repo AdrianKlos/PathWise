@@ -1,0 +1,20 @@
+  // Line 167
+  const SPEEDS = {
+        'Walking': 1.4, // ~5 km/h
+        'Biking': 4.16, // ~15 km/h
+  };
+  let GlobalPath = [];
+  let ArrivalTime;
+  let path = [];
+  const calculateETA = (method) => {
+  const currentTime = new Date();
+    // const distanceKm = haversine(pointA, pointB); using the data that Peter got from the pathfinding function, this will calculate the distance between pointA (start point) and pointB (end point) 
+
+    // We use the physics formula here because we will already know the distance in Kilometers handled by the Haversine function, usually this would only work with a 2D plane, but I imagine it shouldn't
+    // matter.
+    // Time = Distance/Speed ; distanceKm / Speeds[method]
+    // ETA = Departure Time + (Remaining Distance / Average Speed)
+    ArrivalTime = currentTime + (distanceKm / Speeds[method])
+
+    return `${method} arrival time: ${currentTime}`;
+  };
