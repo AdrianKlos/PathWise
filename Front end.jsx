@@ -1,18 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
   Dimensions,
   Modal,
-  FlatList
+  FlatList,
 } from 'react-native';
-import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 
 const myData = require('./filtered.geojson');
+const R = 6371; // Earth radius in km
+
+// Variables to store the final built graph structure
+let graphCoords = []; // Stores the [lon, lat] nodes from GeoJSON
+let graphEdges = {}; // Stores the adjacency list { index: { neighbor: distance } }
+
+const haversine = (coord1, coord2) => {
+  // This is the function you had inside pathFinding
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const [lon1, lat1] = coord1;
+  const [lon2, lat2] = coord2;
+  const dlon = toRad(lon2 - lon1);
+  const dlat = toRad(lat2 - lat1);
+  const a =
+    Math.sin(dlat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dlon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const getCoordIndex = (coord) => {
+  // This function adds a new node or returns the index of an existing one
+  const coordString = `${coord[0]},${coord[1]}`;
+  const existingIndex = graphCoords.findIndex(
+    (c) => `${c[0]},${c[1]}` === coordString
+  );
+  if (existingIndex !== -1) return existingIndex;
+  graphCoords.push(coord);
+  return graphCoords.length - 1;
+};
+
+const addEdge = (i, j) => {
+  // This function creates a weighted edge between two nodes
+  const d = haversine(graphCoords[i], graphCoords[j]);
+  if (!graphEdges[i]) graphEdges[i] = {};
+  if (!graphEdges[j]) graphEdges[j] = {};
+  graphEdges[i][j] = d;
+  graphEdges[j][i] = d;
+};
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,7 +64,8 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21oNmxvaDY0MGp6YjJucHdpYW4zNzY1ZyJ9.89-yt1jBAGLqEpzJ3iuEgw';
+  const MAPBOX_ACCESS_TOKEN =
+    'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21oNmxvaDY0MGp6YjJucHdpYW4zNzY1ZyJ9.89-yt1jBAGLqEpzJ3iuEgw';
 
   useEffect(() => {
     if (searchQuery.length > 2 && suggestionsShown) {
@@ -38,6 +79,30 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
       setShowSuggestions(false);
     }
   }, [searchQuery]);
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Permission to access location was denied');
+          return;
+        }
+
+        let loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest,
+        });
+
+        setPointA({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+      } catch (err) {
+        console.log('Location error:', err);
+      }
+    };
+
+    getUserLocation();
+  }, []); // Only runs once, does NOT touch searchQuery useEffect
 
   const fetchSuggestions = async (searchText) => {
     if (!MAPBOX_ACCESS_TOKEN || !suggestionsShown) {
@@ -48,23 +113,24 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(searchText)}&access_token=${MAPBOX_ACCESS_TOKEN}&session_token=test-session&types=address,place,poi&country=us&proximity=-88.0834,42.0334&limit=5`
+        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(
+          searchText
+        )}&access_token=${MAPBOX_ACCESS_TOKEN}&session_token=test-session&types=address,place,poi&country=us&proximity=-88.0834,42.0334&limit=5`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setSuggestions(data.suggestions || []);
-
     } catch (error) {
       console.error('Error fetching suggestions:', error);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
     }
-    
+
     if (suggestionsShown) {
       setShowSuggestions(true);
     }
@@ -80,21 +146,21 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
       const response = await fetch(
         `https://api.mapbox.com/search/searchbox/v1/retrieve/${suggestion.mapbox_id}?session_token=test-session&access_token=${MAPBOX_ACCESS_TOKEN}`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.features && data.features[0]) {
         const place = data.features[0];
         setSearchQuery(place.properties.full_address || place.properties.name);
         setShowSuggestions(false);
-        
+
         suggestionsShown = false;
         console.log('Suggestions disabled:', suggestionsShown);
-        
+
         if (onPlaceSelect) {
           onPlaceSelect(place);
         }
@@ -107,8 +173,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   const renderSuggestion = ({ item }) => (
     <TouchableOpacity
       style={styles.suggestionItem}
-      onPress={() => handleSuggestionSelect(item)}
-    >
+      onPress={() => handleSuggestionSelect(item)}>
       <Text style={styles.suggestionTitle}>{item.name}</Text>
       <Text style={styles.suggestionAddress}>{item.place_formatted}</Text>
     </TouchableOpacity>
@@ -129,11 +194,9 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
           }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
         />
-        {isLoading && (
-          <Text style={styles.loadingText}>Searching...</Text>
-        )}
+        {isLoading && <Text style={styles.loadingText}>Searching...</Text>}
       </View>
-      
+
       {showSuggestions && suggestions.length > 0 && suggestionsShown && (
         <View style={styles.suggestionsList}>
           <FlatList
@@ -155,12 +218,36 @@ const PathWise = () => {
   const [showTransportOptions, setShowTransportOptions] = useState(false);
   const [transportMethod, setTransportMethod] = useState(null);
   const [activeTab, setActiveTab] = useState('Map');
+  const [pointA, setPointA] = useState(null);
+  const [pointB, setPointB] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [isGraphReady, setIsGraphReady] = useState(false);
 
   const SchaumburgRegion = {
     latitude: 42.0334,
     longitude: -88.0834,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
+  };
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+      });
+
+      const { latitude, longitude } = loc.coords;
+      console.log('Current location:', latitude, longitude);
+      setPointA({ latitude, longitude });
+      return { latitude, longitude };
+    } catch (err) {
+      console.log('Location error:', err);
+    }
   };
 
   const calculateETA = (method) => {
@@ -176,8 +263,15 @@ const PathWise = () => {
   };
 
   const handlePlaceSelect = (place) => {
-    console.log('Selected place:', place);
-    handleSearch();
+    const { latitude, longitude } = place.geometry.coordinates
+      ? {
+          latitude: place.geometry.coordinates[1],
+          longitude: place.geometry.coordinates[0],
+        }
+      : { latitude: 42.0334, longitude: -88.0834 }; // fallback
+
+    setPointB({ latitude, longitude });
+    pathFinding(pointA, { latitude, longitude });
   };
 
   const handleTransportSelect = (method) => {
@@ -188,187 +282,123 @@ const PathWise = () => {
     console.log(eta);
   };
 
-  const pathFinding = (method) => {
-    const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM";
-    const BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
-    const R = 6371;
+  const pathFinding = (start, end) => {
+    // 1. Input Check
+    if (!start || !end || graphCoords.length === 0) {
+      console.warn('Pathfinding aborted: Graph not built or points missing.');
+      return;
+    }
+    // --- UTILITIES (RETAINED) ---
 
-    let currentLocation = null;
-    let isAuthReady = false;
+    // Find nearest node (uses the pre-built graphCoords)
+    const findNearestNode = (point) => {
+      let nearest = null;
+      let minDist = Infinity;
 
-            let latitude, longitude;
-        let routeCoordinates = []; // will be populated from GeoJSON + Dijkstra
+      // Use the globally available graphCoords
+      graphCoords.forEach((c, i) => {
+        const dist = haversine([point.longitude, point.latitude], c);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = i;
+        }
+      });
+      return nearest;
+    };
 
-        const pointB = { lat: 41.9955, lng: -88.0838 }; // Schaumburg Library
+    const startIndex = findNearestNode(start);
+    const endIndex = findNearestNode(end);
 
-        window.onload = function () {
-            getCurrentLocation();
-            loadAndProcessGeoJSON();
-        };
+    if (startIndex === null || endIndex === null) {
+      console.warn('Could not find start or end node on network.');
+      return;
+    }
 
-        function getCurrentLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(success, error);
-            } else {
-                console.log("Geolocation not supported.");
+    // Dijkstra (uses the pre-built graphEdges and graphCoords)
+    const dijkstra = (startNodeIndex, endNodeIndex) => {
+      const distances = {};
+      const prev = {};
+      // Use the built graph's keys (indices)
+      const pq = new Set(Object.keys(graphEdges));
+
+      Object.keys(graphEdges).forEach((node) => (distances[node] = Infinity));
+      distances[String(startNodeIndex)] = 0; // Use string keys for object lookup
+
+      while (pq.size) {
+        // Find unvisited node with smallest distance
+        const current = [...pq].reduce((a, b) =>
+          distances[a] < distances[b] ? a : b
+        );
+        pq.delete(current);
+        if (parseInt(current) === endNodeIndex) break;
+
+        Object.entries(graphEdges[current] || {}).forEach(
+          ([neighbor, weight]) => {
+            // Use graphEdges
+            const alt = distances[current] + weight;
+            if (alt < distances[neighbor]) {
+              distances[neighbor] = alt;
+              prev[neighbor] = current;
             }
-        }
+          }
+        );
+      }
 
-        function success(position) {
-            latitude = position.coords.latitude;
-            longitude = position.coords.longitude;
-            if (routeCoordinates.length) {
-                initMap(latitude, longitude);
-            }
-        }
+      // Reconstruct path
+      const path = [];
+      let curr = String(endNodeIndex);
+      while (curr !== undefined) {
+        path.unshift(parseInt(curr));
+        curr = prev[curr];
+      }
+      return path; // Returns path of node INDICES
+    };
 
-        function error(err) {
-            console.log("Location error:", err);
-        }
+    // --- 2. EXECUTE ROUTING ---
 
-        async function loadAndProcessGeoJSON() {
-            const response = await fetch('filtered.geojson');
-            const data = await response.json();
+    const pathIndices = dijkstra(startIndex, endIndex);
 
-            const graph = {};
+    // 3. Convert indices back to { latitude, longitude } objects
+    const route = pathIndices.map((i) => {
+      // Use the globally available graphCoords
+      const [lon, lat] = graphCoords[i];
+      return { latitude: lat, longitude: lon };
+    });
 
-            // Build graph from all LineString features
-            data.features.forEach(feature => {
-                if (feature.geometry.type === 'LineString') {
-                    const coords = feature.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
-                    for (let i = 0; i < coords.length; i++) {
-                        const key = `${coords[i].lat},${coords[i].lng}`;
-                        if (!graph[key]) graph[key] = [];
-                        if (i > 0) {
-                            const prevKey = `${coords[i - 1].lat},${coords[i - 1].lng}`;
-                            const dist = haversineDistance(coords[i - 1], coords[i]);
-                            graph[key].push({ node: prevKey, weight: dist });
-                            graph[prevKey].push({ node: key, weight: dist });
-                        }
-                    }
-                }
-            });
-
-            // Find nearest nodes to current location (Point A) and pointB
-            const pointAKey = findNearestNode(graph, { lat: latitude || 0, lng: longitude || 0 });
-            const pointBKey = findNearestNode(graph, pointB);
-
-            // Compute shortest path
-            const path = dijkstra(graph, pointAKey, pointBKey);
-            routeCoordinates = path.map(p => {
-                const [lat, lng] = p.split(',');
-                return { lat: parseFloat(lat), lng: parseFloat(lng) };
-            });
-
-            if (latitude && longitude) {
-                initMap(latitude, longitude);
-            }
-        }
-
-        function findNearestNode(graph, point) {
-            let nearest = null;
-            let minDist = Infinity;
-            Object.keys(graph).forEach(key => {
-                const [lat, lng] = key.split(',').map(Number);
-                const d = haversineDistance({ lat, lng }, point);
-                if (d < minDist) {
-                    minDist = d;
-                    nearest = key;
-                }
-            });
-            return nearest;
-        }
-
-        function haversineDistance(a, b) {
-            const R = 6371e3;
-            const φ1 = a.lat * Math.PI / 180;
-            const φ2 = b.lat * Math.PI / 180;
-            const Δφ = (b.lat - a.lat) * Math.PI / 180;
-            const Δλ = (b.lng - a.lng) * Math.PI / 180;
-            const x = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-            return 2 * R * Math.asin(Math.sqrt(x));
-        }
-
-        function dijkstra(graph, start, end) {
-            const distances = {};
-            const prev = {};
-            const pq = new Set(Object.keys(graph));
-            Object.keys(graph).forEach(node => distances[node] = Infinity);
-            distances[start] = 0;
-
-            while (pq.size) {
-                const current = [...pq].reduce((a, b) => distances[a] < distances[b] ? a : b);
-                pq.delete(current);
-                if (current === end) break;
-
-                graph[current].forEach(neighbor => {
-                    const alt = distances[current] + neighbor.weight;
-                    if (alt < distances[neighbor.node]) {
-                        distances[neighbor.node] = alt;
-                        prev[neighbor.node] = current;
-                    }
-                });
-            }
-
-            const path = [];
-            let curr = end;
-            while (curr) {
-                path.unshift(curr);
-                curr = prev[curr];
-            }
-            return path;
-        }
-
-        function initMap(lat, lon) {
-            if (lat === undefined || lon === undefined) return;
-
-            const myLatlng = { lat, lng: lon };
-            const map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 14,
-                center: myLatlng
-            });
-
-            new google.maps.Marker({
-                position: myLatlng,
-                map,
-                title: "Your Location"
-            });
-
-            if (routeCoordinates.length > 1) {
-                const routePath = new google.maps.Polyline({
-                    path: routeCoordinates,
-                    geodesic: true,
-                    strokeColor: "#FF0000",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 4
-                });
-                routePath.setMap(map);
-
-                const bounds = new google.maps.LatLngBounds();
-                routeCoordinates.forEach(point => bounds.extend(point));
-                map.fitBounds(bounds);
-            }
-        }
+    // 4. Update state to draw the path
+    setRouteCoordinates(route);
   };
 
   const MenuItems = () => (
     <View style={styles.menuContent}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.menuItem, activeTab === 'Map' && styles.activeMenuItem]}
-        onPress={() => { setActiveTab('Map'); setIsMenuOpen(false); }}
-      >
+        onPress={() => {
+          setActiveTab('Map');
+          setIsMenuOpen(false);
+        }}>
         <Text style={styles.menuText}>Map</Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.menuItem, activeTab === 'Settings' && styles.activeMenuItem]}
-        onPress={() => { setActiveTab('Settings'); setIsMenuOpen(false); }}
-      >
+      <TouchableOpacity
+        style={[
+          styles.menuItem,
+          activeTab === 'Settings' && styles.activeMenuItem,
+        ]}
+        onPress={() => {
+          setActiveTab('Settings');
+          setIsMenuOpen(false);
+        }}>
         <Text style={styles.menuText}>Settings</Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.menuItem, activeTab === 'Credits' && styles.activeMenuItem]}
-        onPress={() => { setActiveTab('Credits'); setIsMenuOpen(false); }}
-      >
+      <TouchableOpacity
+        style={[
+          styles.menuItem,
+          activeTab === 'Credits' && styles.activeMenuItem,
+        ]}
+        onPress={() => {
+          setActiveTab('Credits');
+          setIsMenuOpen(false);
+        }}>
         <Text style={styles.menuText}>Credits</Text>
       </TouchableOpacity>
     </View>
@@ -377,10 +407,9 @@ const PathWise = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuButton}
-          onPress={() => setIsMenuOpen(true)}
-        >
+          onPress={() => setIsMenuOpen(true)}>
           <Ionicons name="menu" size={28} color="#333" />
         </TouchableOpacity>
         <Text style={styles.appTitle}>PathWise</Text>
@@ -393,38 +422,46 @@ const PathWise = () => {
             <MapView
               style={styles.map}
               initialRegion={SchaumburgRegion}
-              showsUserLocation={true}
-              showsMyLocationButton={true}
-            />
-            
+              showsUserLocation={true}>
+              {pointA && <Marker coordinate={pointA} title="You" />}
+              {pointB && <Marker coordinate={pointB} title="Destination" />}
+              {routeCoordinates.length > 0 && (
+                <Polyline
+                  coordinates={routeCoordinates}
+                  strokeColor="#FF0000"
+                  strokeWidth={4}
+                />
+              )}
+            </MapView>
+
             <View style={styles.searchContainer}>
               <MapBoxAutocomplete
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 onPlaceSelect={handlePlaceSelect}
               />
-              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={handleSearch}>
                 <Ionicons name="search" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
 
             {showTransportOptions && (
               <View style={styles.transportOptions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.transportButton, styles.walkingButton]}
-                  onPress={() => handleTransportSelect('Walking')}
-                >
+                  onPress={() => handleTransportSelect('Walking')}>
                   <Text style={styles.transportButtonText}>Walking</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.transportButton, styles.bikingButton]}
-                  onPress={() => handleTransportSelect('Biking')}
-                >
+                  onPress={() => handleTransportSelect('Biking')}>
                   <Text style={styles.transportButtonText}>Biking</Text>
                 </TouchableOpacity>
               </View>
             )}
-            
+
             {showRouteInfo && (
               <View style={styles.routeInfo}>
                 <View style={styles.routeDetail}>
@@ -463,13 +500,11 @@ const PathWise = () => {
         animationType="slide"
         transparent={true}
         visible={isMenuOpen}
-        onRequestClose={() => setIsMenuOpen(false)}
-      >
-        <TouchableOpacity 
+        onRequestClose={() => setIsMenuOpen(false)}>
+        <TouchableOpacity
           style={styles.menuOverlay}
           activeOpacity={1}
-          onPressOut={() => setIsMenuOpen(false)}
-        >
+          onPressOut={() => setIsMenuOpen(false)}>
           <View style={styles.menuContainer}>
             <MenuItems />
           </View>
