@@ -1,0 +1,17 @@
+function getWarnings() {
+  const geojson = await fetch('./filtered.geojson');
+
+  geojson.features.forEach((feature, index) => {
+    const props = feature.properties;
+
+    console.log(`Feature ${index}:`);
+    console.log("  STATUS:", props.STATUS);
+
+    if(props.STATUS === 1){
+        return `There are some unfinished paths along this route!`
+    }else{
+        return `This route is safe!`
+    }
+  });
+
+}
