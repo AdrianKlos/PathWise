@@ -10,51 +10,15 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-
-const myData = require('./filtered.geojson');
-const R = 6371; // Earth radius in km
-
-// Variables to store the final built graph structure
-let graphCoords = []; // Stores the [lon, lat] nodes from GeoJSON
-let graphEdges = {}; // Stores the adjacency list { index: { neighbor: distance } }
-
-const haversine = (coord1, coord2) => {
-  // This is the function you had inside pathFinding
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const [lon1, lat1] = coord1;
-  const [lon2, lat2] = coord2;
-  const dlon = toRad(lon2 - lon1);
-  const dlat = toRad(lat2 - lat1);
-  const a =
-    Math.sin(dlat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dlon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-const getCoordIndex = (coord) => {
-  // This function adds a new node or returns the index of an existing one
-  const coordString = `${coord[0]},${coord[1]}`;
-  const existingIndex = graphCoords.findIndex(
-    (c) => `${c[0]},${c[1]}` === coordString
-  );
-  if (existingIndex !== -1) return existingIndex;
-  graphCoords.push(coord);
-  return graphCoords.length - 1;
-};
-
-const addEdge = (i, j) => {
-  // This function creates a weighted edge between two nodes
-  const d = haversine(graphCoords[i], graphCoords[j]);
-  if (!graphEdges[i]) graphEdges[i] = {};
-  if (!graphEdges[j]) graphEdges[j] = {};
-  graphEdges[i][j] = d;
-  graphEdges[j][i] = d;
-};
+import { Alert } from 'react-native';
+import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
+//import sidewalkData from './filtered.json';
+//const sidewalkData = require('./test123.json');
+const GEOJSON_URL =
+  'https://drive.google.com/uc?export=download&id=1ZvmOYJsHcY3jBJbbLaGyiWFSA7V-OAIY';
 
 // Global variable
 let suggestionsShown = true;
@@ -79,30 +43,6 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
       setShowSuggestions(false);
     }
   }, [searchQuery]);
-  useEffect(() => {
-    const getUserLocation = async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          console.log('Permission to access location was denied');
-          return;
-        }
-
-        let loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest,
-        });
-
-        setPointA({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-      } catch (err) {
-        console.log('Location error:', err);
-      }
-    };
-
-    getUserLocation();
-  }, []); // Only runs once, does NOT touch searchQuery useEffect
 
   const fetchSuggestions = async (searchText) => {
     if (!MAPBOX_ACCESS_TOKEN || !suggestionsShown) {
@@ -211,6 +151,12 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   );
 };
 
+const handleSearch = () => {
+  if (searchQuery.trim()) {
+    setShowTransportOptions(true);
+    setShowRouteInfo(false);
+  }
+};
 const PathWise = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -221,7 +167,7 @@ const PathWise = () => {
   const [pointA, setPointA] = useState(null);
   const [pointB, setPointB] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [isGraphReady, setIsGraphReady] = useState(false);
+  const [sidewalkData, setSidewalkData] = useState(null);
 
   const SchaumburgRegion = {
     latitude: 42.0334,
@@ -229,49 +175,122 @@ const PathWise = () => {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   };
-  const getCurrentLocation = async () => {
+
+  useEffect(() => {
+    const loadGeoJSON = async () => {
+      try {
+        const response = await fetch(GEOJSON_URL);
+        const data = await response.json();
+        setSidewalkData(data);
+
+        if (data.features && data.features.length > 0) {
+          Alert.alert('GeoJSON Loaded', `Features: ${data.features.length}`);
+        } else {
+          Alert.alert('No features found in GeoJSON');
+        }
+      } catch (err) {
+        Alert.alert('Error loading GeoJSON', err.message);
+      }
+    };
+
+    loadGeoJSON();
+  }, []);
+
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        console.log('Permission status:', status);
+
+        if (status !== 'granted') {
+          Alert.alert('Permission denied', 'Cannot access your location');
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({});
+        console.log('Location obtained:', location);
+
+        setPointA({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+
+        Alert.alert(
+          'Point A Set',
+          `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`
+        );
+      } catch (error) {
+        Alert.alert('Error', 'Failed to get location');
+        console.error('Error getting location:', error);
+      }
+    };
+
+    getUserLocation();
+  }, []);
+
+  const handlePlaceSelect = async (place) => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Permission to access location was denied');
-        return;
+      // --- Extract coordinates from the selected place ---
+      let latitude, longitude;
+
+      if (
+        place?.geometry?.coordinates &&
+        Array.isArray(place.geometry.coordinates)
+      ) {
+        [longitude, latitude] = place.geometry.coordinates;
+      } else if (place?.geometry?.location) {
+        latitude =
+          typeof place.geometry.location.lat === 'function'
+            ? place.geometry.location.lat()
+            : place.geometry.location.lat;
+        longitude =
+          typeof place.geometry.location.lng === 'function'
+            ? place.geometry.location.lng()
+            : place.geometry.location.lng;
+      } else if (place?.latitude && place?.longitude) {
+        latitude = place.latitude;
+        longitude = place.longitude;
+      } else {
+        Alert.alert('Error', 'No valid coordinates found — using fallback.');
+        latitude = 42.0334;
+        longitude = -88.0834;
       }
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest,
-      });
+      // --- Set destination point (Point B) ---
+      const endCoords = { latitude, longitude };
+      setPointB(endCoords);
 
-      const { latitude, longitude } = loc.coords;
-      console.log('Current location:', latitude, longitude);
-      setPointA({ latitude, longitude });
-      return { latitude, longitude };
+      // --- Wait for point A (current or hardcoded start) ---
+      const startCoords = pointA || {
+        latitude: 42.025464,
+        longitude: -88.083289,
+      }; // Schaumburg Library fallback
+
+      Alert.alert(
+        'Coordinate Check',
+        `Start: ${JSON.stringify(startCoords)}\nEnd: ${JSON.stringify(
+          endCoords
+        )}`
+      );
+
+      // --- Compute sidewalk path ---
+      const routeCoordinates = computeSidewalkPath(startCoords, endCoords);
+
+      // --- Check and display ---
+      if (routeCoordinates && routeCoordinates.length > 0) {
+        Alert.alert(
+          'Path Debug',
+          `Points in path: ${
+            routeCoordinates.length
+          }\nFirst 5: ${JSON.stringify(routeCoordinates.slice(0, 5))}`
+        );
+        setRouteCoordinates(routeCoordinates); // this draws the line on the map
+      } else {
+        Alert.alert('No Path', 'No valid route could be generated.');
+      }
     } catch (err) {
-      console.log('Location error:', err);
+      Alert.alert('Error', err.message || JSON.stringify(err));
     }
-  };
-
-  const calculateETA = (method) => {
-    const currentTime = new Date();
-    return `TO DO: ${method} calculation at ${currentTime.toLocaleTimeString()}`;
-  };
-
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setShowTransportOptions(true);
-      setShowRouteInfo(false);
-    }
-  };
-
-  const handlePlaceSelect = (place) => {
-    const { latitude, longitude } = place.geometry.coordinates
-      ? {
-          latitude: place.geometry.coordinates[1],
-          longitude: place.geometry.coordinates[0],
-        }
-      : { latitude: 42.0334, longitude: -88.0834 }; // fallback
-
-    setPointB({ latitude, longitude });
-    pathFinding(pointA, { latitude, longitude });
   };
 
   const handleTransportSelect = (method) => {
@@ -282,92 +301,152 @@ const PathWise = () => {
     console.log(eta);
   };
 
-  const pathFinding = (start, end) => {
-    // 1. Input Check
-    if (!start || !end || graphCoords.length === 0) {
-      console.warn('Pathfinding aborted: Graph not built or points missing.');
-      return;
+ const computeSidewalkPath = (start, end) => {
+  try {
+    if (!sidewalkData?.features?.length) {
+      Alert.alert('Error', 'Sidewalk data not loaded!');
+      return [];
     }
-    // --- UTILITIES (RETAINED) ---
 
-    // Find nearest node (uses the pre-built graphCoords)
+    // --- Helper: Haversine distance ---
+    const haversine = (lat1, lon1, lat2, lon2) => {
+      const R = 6371e3; // meters
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    // --- Extract all nodes and edges ---
+    const nodes = [];
+    const edges = [];
+
+    sidewalkData.features.forEach((feature) => {
+      if (feature.geometry?.type === 'LineString') {
+        const coords = feature.geometry.coordinates;
+        for (let i = 0; i < coords.length; i++) {
+          const [lng, lat] = coords[i];
+          nodes.push({ lat, lng });
+          if (i > 0) {
+            const [prevLng, prevLat] = coords[i - 1];
+            edges.push({
+              from: { lat: prevLat, lng: prevLng },
+              to: { lat, lng },
+              dist: haversine(lat, lng, prevLat, prevLng),
+            });
+          }
+        }
+      }
+    });
+
+    if (!nodes.length) {
+      Alert.alert('Error', 'No nodes in sidewalk network!');
+      return [];
+    }
+
+    // --- Find nearest nodes ---
     const findNearestNode = (point) => {
       let nearest = null;
       let minDist = Infinity;
-
-      // Use the globally available graphCoords
-      graphCoords.forEach((c, i) => {
-        const dist = haversine([point.longitude, point.latitude], c);
-        if (dist < minDist) {
-          minDist = dist;
-          nearest = i;
+      for (let node of nodes) {
+        const d = haversine(point.latitude, point.longitude, node.lat, node.lng);
+        if (d < minDist) {
+          minDist = d;
+          nearest = node;
         }
-      });
+      }
       return nearest;
     };
 
-    const startIndex = findNearestNode(start);
-    const endIndex = findNearestNode(end);
+    const startNode = findNearestNode(start);
+    const endNode = findNearestNode(end);
 
-    if (startIndex === null || endIndex === null) {
-      console.warn('Could not find start or end node on network.');
-      return;
+    // --- If start and end are same node, force virtual nodes ---
+    if (
+      startNode.lat === endNode.lat &&
+      startNode.lng === endNode.lng
+    ) {
+      return [start, end]; // simple straight line
     }
 
-    // Dijkstra (uses the pre-built graphEdges and graphCoords)
-    const dijkstra = (startNodeIndex, endNodeIndex) => {
-      const distances = {};
-      const prev = {};
-      // Use the built graph's keys (indices)
-      const pq = new Set(Object.keys(graphEdges));
-
-      Object.keys(graphEdges).forEach((node) => (distances[node] = Infinity));
-      distances[String(startNodeIndex)] = 0; // Use string keys for object lookup
-
-      while (pq.size) {
-        // Find unvisited node with smallest distance
-        const current = [...pq].reduce((a, b) =>
-          distances[a] < distances[b] ? a : b
-        );
-        pq.delete(current);
-        if (parseInt(current) === endNodeIndex) break;
-
-        Object.entries(graphEdges[current] || {}).forEach(
-          ([neighbor, weight]) => {
-            // Use graphEdges
-            const alt = distances[current] + weight;
-            if (alt < distances[neighbor]) {
-              distances[neighbor] = alt;
-              prev[neighbor] = current;
-            }
-          }
-        );
-      }
-
-      // Reconstruct path
-      const path = [];
-      let curr = String(endNodeIndex);
-      while (curr !== undefined) {
-        path.unshift(parseInt(curr));
-        curr = prev[curr];
-      }
-      return path; // Returns path of node INDICES
-    };
-
-    // --- 2. EXECUTE ROUTING ---
-
-    const pathIndices = dijkstra(startIndex, endIndex);
-
-    // 3. Convert indices back to { latitude, longitude } objects
-    const route = pathIndices.map((i) => {
-      // Use the globally available graphCoords
-      const [lon, lat] = graphCoords[i];
-      return { latitude: lat, longitude: lon };
+    // --- Build adjacency list ---
+    const key = (node) => `${node.lat.toFixed(6)},${node.lng.toFixed(6)}`;
+    const graph = {};
+    edges.forEach((e) => {
+      const a = key(e.from);
+      const b = key(e.to);
+      if (!graph[a]) graph[a] = [];
+      if (!graph[b]) graph[b] = [];
+      graph[a].push({ node: e.to, dist: e.dist });
+      graph[b].push({ node: e.from, dist: e.dist });
     });
 
-    // 4. Update state to draw the path
-    setRouteCoordinates(route);
-  };
+    // --- Dijkstra shortest path ---
+    const dijkstra = (start, end) => {
+      const startKey = key(start);
+      const endKey = key(end);
+      const dist = {};
+      const prev = {};
+      const pq = new Map();
+
+      for (let nodeKey in graph) dist[nodeKey] = Infinity;
+      dist[startKey] = 0;
+      pq.set(startKey, 0);
+
+      while (pq.size > 0) {
+        let [u, uDist] = [...pq.entries()].reduce((a, b) =>
+          a[1] < b[1] ? a : b
+        );
+        pq.delete(u);
+
+        if (u === endKey) break;
+
+        for (let neighbor of graph[u] || []) {
+          const v = key(neighbor.node);
+          const alt = uDist + neighbor.dist;
+          if (alt < dist[v]) {
+            dist[v] = alt;
+            prev[v] = u;
+            pq.set(v, alt);
+          }
+        }
+      }
+
+      // --- Reconstruct path ---
+      const path = [];
+      let u = endKey;
+      while (u) {
+        const [lat, lng] = u.split(',').map(Number);
+        path.unshift({ latitude: lat, longitude: lng });
+        u = prev[u];
+      }
+
+      // If Dijkstra failed, return simple straight line
+      if (path.length === 0) return [start, end];
+      return path;
+    };
+
+    const route = dijkstra(startNode, endNode);
+
+    // --- Ensure at least 2 points ---
+    if (route.length === 1) {
+      route.unshift(start);
+      route.push(end);
+    }
+
+    console.log('Route generated:', route.length, 'points');
+    return route;
+  } catch (err) {
+    Alert.alert('Error computing path', err.message || JSON.stringify(err));
+    return [start, end]; // fallback straight line
+  }
+};
+
 
   const MenuItems = () => (
     <View style={styles.menuContent}>
@@ -428,7 +507,7 @@ const PathWise = () => {
               {routeCoordinates.length > 0 && (
                 <Polyline
                   coordinates={routeCoordinates}
-                  strokeColor="#FF0000"
+                  strokeColor="#007AFF"
                   strokeWidth={4}
                 />
               )}
