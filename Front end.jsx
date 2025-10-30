@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
   Dimensions,
   Modal,
-  FlatList
+  FlatList,
 } from 'react-native';
-import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-
-const myData = require('./filtered.geojson');
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { Alert } from 'react-native';
+import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
+//import sidewalkData from './filtered.json';
+//const sidewalkData = require('./test123.json');
+const GEOJSON_URL =
+  'https://drive.google.com/uc?export=download&id=1ZvmOYJsHcY3jBJbbLaGyiWFSA7V-OAIY';
 
 // Global variable
 let suggestionsShown = true;
@@ -24,7 +28,8 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21oNmxvaDY0MGp6YjJucHdpYW4zNzY1ZyJ9.89-yt1jBAGLqEpzJ3iuEgw';
+  const MAPBOX_ACCESS_TOKEN =
+    'pk.eyJ1IjoiYWRyaWFuamtsb3MiLCJhIjoiY21oNmxvaDY0MGp6YjJucHdpYW4zNzY1ZyJ9.89-yt1jBAGLqEpzJ3iuEgw';
 
   useEffect(() => {
     if (searchQuery.length > 2 && suggestionsShown) {
@@ -48,23 +53,24 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(searchText)}&access_token=${MAPBOX_ACCESS_TOKEN}&session_token=test-session&types=address,place,poi&country=us&proximity=-88.0834,42.0334&limit=5`
+        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(
+          searchText
+        )}&access_token=${MAPBOX_ACCESS_TOKEN}&session_token=test-session&types=address,place,poi&country=us&proximity=-88.0834,42.0334&limit=5`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setSuggestions(data.suggestions || []);
-
     } catch (error) {
       console.error('Error fetching suggestions:', error);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
     }
-    
+
     if (suggestionsShown) {
       setShowSuggestions(true);
     }
@@ -80,21 +86,21 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
       const response = await fetch(
         `https://api.mapbox.com/search/searchbox/v1/retrieve/${suggestion.mapbox_id}?session_token=test-session&access_token=${MAPBOX_ACCESS_TOKEN}`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.features && data.features[0]) {
         const place = data.features[0];
         setSearchQuery(place.properties.full_address || place.properties.name);
         setShowSuggestions(false);
-        
+
         suggestionsShown = false;
         console.log('Suggestions disabled:', suggestionsShown);
-        
+
         if (onPlaceSelect) {
           onPlaceSelect(place);
         }
@@ -107,8 +113,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   const renderSuggestion = ({ item }) => (
     <TouchableOpacity
       style={styles.suggestionItem}
-      onPress={() => handleSuggestionSelect(item)}
-    >
+      onPress={() => handleSuggestionSelect(item)}>
       <Text style={styles.suggestionTitle}>{item.name}</Text>
       <Text style={styles.suggestionAddress}>{item.place_formatted}</Text>
     </TouchableOpacity>
@@ -129,11 +134,9 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
           }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
         />
-        {isLoading && (
-          <Text style={styles.loadingText}>Searching...</Text>
-        )}
+        {isLoading && <Text style={styles.loadingText}>Searching...</Text>}
       </View>
-      
+
       {showSuggestions && suggestions.length > 0 && suggestionsShown && (
         <View style={styles.suggestionsList}>
           <FlatList
@@ -148,6 +151,12 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery }) => {
   );
 };
 
+const handleSearch = () => {
+  if (searchQuery.trim()) {
+    setShowTransportOptions(true);
+    setShowRouteInfo(false);
+  }
+};
 const PathWise = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -155,6 +164,10 @@ const PathWise = () => {
   const [showTransportOptions, setShowTransportOptions] = useState(false);
   const [transportMethod, setTransportMethod] = useState(null);
   const [activeTab, setActiveTab] = useState('Map');
+  const [pointA, setPointA] = useState(null);
+  const [pointB, setPointB] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [sidewalkData, setSidewalkData] = useState(null);
 
   const SchaumburgRegion = {
     latitude: 42.0334,
@@ -163,21 +176,121 @@ const PathWise = () => {
     longitudeDelta: 0.0421,
   };
 
-  const calculateETA = (method) => {
-    const currentTime = new Date();
-    return `TO DO: ${method} calculation at ${currentTime.toLocaleTimeString()}`;
-  };
+  useEffect(() => {
+    const loadGeoJSON = async () => {
+      try {
+        const response = await fetch(GEOJSON_URL);
+        const data = await response.json();
+        setSidewalkData(data);
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setShowTransportOptions(true);
-      setShowRouteInfo(false);
+        if (data.features && data.features.length > 0) {
+          Alert.alert('GeoJSON Loaded', `Features: ${data.features.length}`);
+        } else {
+          Alert.alert('No features found in GeoJSON');
+        }
+      } catch (err) {
+        Alert.alert('Error loading GeoJSON', err.message);
+      }
+    };
+
+    loadGeoJSON();
+  }, []);
+
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        console.log('Permission status:', status);
+
+        if (status !== 'granted') {
+          Alert.alert('Permission denied', 'Cannot access your location');
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({});
+        console.log('Location obtained:', location);
+
+        setPointA({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+
+        Alert.alert(
+          'Point A Set',
+          `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`
+        );
+      } catch (error) {
+        Alert.alert('Error', 'Failed to get location');
+        console.error('Error getting location:', error);
+      }
+    };
+
+    getUserLocation();
+  }, []);
+
+  const handlePlaceSelect = async (place) => {
+    try {
+      // --- Extract coordinates from the selected place ---
+      let latitude, longitude;
+
+      if (
+        place?.geometry?.coordinates &&
+        Array.isArray(place.geometry.coordinates)
+      ) {
+        [longitude, latitude] = place.geometry.coordinates;
+      } else if (place?.geometry?.location) {
+        latitude =
+          typeof place.geometry.location.lat === 'function'
+            ? place.geometry.location.lat()
+            : place.geometry.location.lat;
+        longitude =
+          typeof place.geometry.location.lng === 'function'
+            ? place.geometry.location.lng()
+            : place.geometry.location.lng;
+      } else if (place?.latitude && place?.longitude) {
+        latitude = place.latitude;
+        longitude = place.longitude;
+      } else {
+        Alert.alert('Error', 'No valid coordinates found — using fallback.');
+        latitude = 42.0334;
+        longitude = -88.0834;
+      }
+
+      // --- Set destination point (Point B) ---
+      const endCoords = { latitude, longitude };
+      setPointB(endCoords);
+
+      // --- Wait for point A (current or hardcoded start) ---
+      const startCoords = pointA || {
+        latitude: 42.025464,
+        longitude: -88.083289,
+      }; // Schaumburg Library fallback
+
+      Alert.alert(
+        'Coordinate Check',
+        `Start: ${JSON.stringify(startCoords)}\nEnd: ${JSON.stringify(
+          endCoords
+        )}`
+      );
+
+      // --- Compute sidewalk path ---
+      const routeCoordinates = computeSidewalkPath(startCoords, endCoords);
+
+      // --- Check and display ---
+      if (routeCoordinates && routeCoordinates.length > 0) {
+        Alert.alert(
+          'Path Debug',
+          `Points in path: ${
+            routeCoordinates.length
+          }\nFirst 5: ${JSON.stringify(routeCoordinates.slice(0, 5))}`
+        );
+        setRouteCoordinates(routeCoordinates); // this draws the line on the map
+      } else {
+        Alert.alert('No Path', 'No valid route could be generated.');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || JSON.stringify(err));
     }
-  };
-
-  const handlePlaceSelect = (place) => {
-    console.log('Selected place:', place);
-    handleSearch();
   };
 
   const handleTransportSelect = (method) => {
@@ -188,33 +301,183 @@ const PathWise = () => {
     console.log(eta);
   };
 
-  const pathFinding = (method) => {
-    const API_KEY = "AIzaSyDLnGHw5jc227pi3LBqjtr74k3ybwwcWCM";
-    const BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
-    const R = 6371;
+ const computeSidewalkPath = (start, end) => {
+  try {
+    if (!sidewalkData?.features?.length) {
+      Alert.alert('Error', 'Sidewalk data not loaded!');
+      return [];
+    }
 
-    let currentLocation = null;
-    let isAuthReady = false;
-  };
+    // --- Helper: Haversine distance ---
+    const haversine = (lat1, lon1, lat2, lon2) => {
+      const R = 6371e3; // meters
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    // --- Extract all nodes and edges ---
+    const nodes = [];
+    const edges = [];
+
+    sidewalkData.features.forEach((feature) => {
+      if (feature.geometry?.type === 'LineString') {
+        const coords = feature.geometry.coordinates;
+        for (let i = 0; i < coords.length; i++) {
+          const [lng, lat] = coords[i];
+          nodes.push({ lat, lng });
+          if (i > 0) {
+            const [prevLng, prevLat] = coords[i - 1];
+            edges.push({
+              from: { lat: prevLat, lng: prevLng },
+              to: { lat, lng },
+              dist: haversine(lat, lng, prevLat, prevLng),
+            });
+          }
+        }
+      }
+    });
+
+    if (!nodes.length) {
+      Alert.alert('Error', 'No nodes in sidewalk network!');
+      return [];
+    }
+
+    // --- Find nearest nodes ---
+    const findNearestNode = (point) => {
+      let nearest = null;
+      let minDist = Infinity;
+      for (let node of nodes) {
+        const d = haversine(point.latitude, point.longitude, node.lat, node.lng);
+        if (d < minDist) {
+          minDist = d;
+          nearest = node;
+        }
+      }
+      return nearest;
+    };
+
+    const startNode = findNearestNode(start);
+    const endNode = findNearestNode(end);
+
+    // --- If start and end are same node, force virtual nodes ---
+    if (
+      startNode.lat === endNode.lat &&
+      startNode.lng === endNode.lng
+    ) {
+      return [start, end]; // simple straight line
+    }
+
+    // --- Build adjacency list ---
+    const key = (node) => `${node.lat.toFixed(6)},${node.lng.toFixed(6)}`;
+    const graph = {};
+    edges.forEach((e) => {
+      const a = key(e.from);
+      const b = key(e.to);
+      if (!graph[a]) graph[a] = [];
+      if (!graph[b]) graph[b] = [];
+      graph[a].push({ node: e.to, dist: e.dist });
+      graph[b].push({ node: e.from, dist: e.dist });
+    });
+
+    // --- Dijkstra shortest path ---
+    const dijkstra = (start, end) => {
+      const startKey = key(start);
+      const endKey = key(end);
+      const dist = {};
+      const prev = {};
+      const pq = new Map();
+
+      for (let nodeKey in graph) dist[nodeKey] = Infinity;
+      dist[startKey] = 0;
+      pq.set(startKey, 0);
+
+      while (pq.size > 0) {
+        let [u, uDist] = [...pq.entries()].reduce((a, b) =>
+          a[1] < b[1] ? a : b
+        );
+        pq.delete(u);
+
+        if (u === endKey) break;
+
+        for (let neighbor of graph[u] || []) {
+          const v = key(neighbor.node);
+          const alt = uDist + neighbor.dist;
+          if (alt < dist[v]) {
+            dist[v] = alt;
+            prev[v] = u;
+            pq.set(v, alt);
+          }
+        }
+      }
+
+      // --- Reconstruct path ---
+      const path = [];
+      let u = endKey;
+      while (u) {
+        const [lat, lng] = u.split(',').map(Number);
+        path.unshift({ latitude: lat, longitude: lng });
+        u = prev[u];
+      }
+
+      // If Dijkstra failed, return simple straight line
+      if (path.length === 0) return [start, end];
+      return path;
+    };
+
+    const route = dijkstra(startNode, endNode);
+
+    // --- Ensure at least 2 points ---
+    if (route.length === 1) {
+      route.unshift(start);
+      route.push(end);
+    }
+
+    console.log('Route generated:', route.length, 'points');
+    return route;
+  } catch (err) {
+    Alert.alert('Error computing path', err.message || JSON.stringify(err));
+    return [start, end]; // fallback straight line
+  }
+};
+
 
   const MenuItems = () => (
     <View style={styles.menuContent}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.menuItem, activeTab === 'Map' && styles.activeMenuItem]}
-        onPress={() => { setActiveTab('Map'); setIsMenuOpen(false); }}
-      >
+        onPress={() => {
+          setActiveTab('Map');
+          setIsMenuOpen(false);
+        }}>
         <Text style={styles.menuText}>Map</Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.menuItem, activeTab === 'Settings' && styles.activeMenuItem]}
-        onPress={() => { setActiveTab('Settings'); setIsMenuOpen(false); }}
-      >
+      <TouchableOpacity
+        style={[
+          styles.menuItem,
+          activeTab === 'Settings' && styles.activeMenuItem,
+        ]}
+        onPress={() => {
+          setActiveTab('Settings');
+          setIsMenuOpen(false);
+        }}>
         <Text style={styles.menuText}>Settings</Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.menuItem, activeTab === 'Credits' && styles.activeMenuItem]}
-        onPress={() => { setActiveTab('Credits'); setIsMenuOpen(false); }}
-      >
+      <TouchableOpacity
+        style={[
+          styles.menuItem,
+          activeTab === 'Credits' && styles.activeMenuItem,
+        ]}
+        onPress={() => {
+          setActiveTab('Credits');
+          setIsMenuOpen(false);
+        }}>
         <Text style={styles.menuText}>Credits</Text>
       </TouchableOpacity>
     </View>
@@ -223,10 +486,9 @@ const PathWise = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuButton}
-          onPress={() => setIsMenuOpen(true)}
-        >
+          onPress={() => setIsMenuOpen(true)}>
           <Ionicons name="menu" size={28} color="#333" />
         </TouchableOpacity>
         <Text style={styles.appTitle}>PathWise</Text>
@@ -239,38 +501,46 @@ const PathWise = () => {
             <MapView
               style={styles.map}
               initialRegion={SchaumburgRegion}
-              showsUserLocation={true}
-              showsMyLocationButton={true}
-            />
-            
+              showsUserLocation={true}>
+              {pointA && <Marker coordinate={pointA} title="You" />}
+              {pointB && <Marker coordinate={pointB} title="Destination" />}
+              {routeCoordinates.length > 0 && (
+                <Polyline
+                  coordinates={routeCoordinates}
+                  strokeColor="#007AFF"
+                  strokeWidth={4}
+                />
+              )}
+            </MapView>
+
             <View style={styles.searchContainer}>
               <MapBoxAutocomplete
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 onPlaceSelect={handlePlaceSelect}
               />
-              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={handleSearch}>
                 <Ionicons name="search" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
 
             {showTransportOptions && (
               <View style={styles.transportOptions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.transportButton, styles.walkingButton]}
-                  onPress={() => handleTransportSelect('Walking')}
-                >
+                  onPress={() => handleTransportSelect('Walking')}>
                   <Text style={styles.transportButtonText}>Walking</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.transportButton, styles.bikingButton]}
-                  onPress={() => handleTransportSelect('Biking')}
-                >
+                  onPress={() => handleTransportSelect('Biking')}>
                   <Text style={styles.transportButtonText}>Biking</Text>
                 </TouchableOpacity>
               </View>
             )}
-            
+
             {showRouteInfo && (
               <View style={styles.routeInfo}>
                 <View style={styles.routeDetail}>
@@ -309,13 +579,11 @@ const PathWise = () => {
         animationType="slide"
         transparent={true}
         visible={isMenuOpen}
-        onRequestClose={() => setIsMenuOpen(false)}
-      >
-        <TouchableOpacity 
+        onRequestClose={() => setIsMenuOpen(false)}>
+        <TouchableOpacity
           style={styles.menuOverlay}
           activeOpacity={1}
-          onPressOut={() => setIsMenuOpen(false)}
-        >
+          onPressOut={() => setIsMenuOpen(false)}>
           <View style={styles.menuContainer}>
             <MenuItems />
           </View>
