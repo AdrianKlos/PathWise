@@ -281,7 +281,7 @@ const PathWise = () => {
         //console.log(
           'Point A Set',
           `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`
-        );
+        //);
       } catch (error) {
         //console.log('Error', 'Failed to get location');
         //console.error('Error getting location:', error);
