@@ -169,6 +169,7 @@ const PathWise = () => {
   const [pointB, setPointB] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [sidewalkData, setSidewalkData] = useState(null);
+  const [warningStatus, setWarningStatus] = useState('Checking...');
 
   const SchaumburgRegion = {
     latitude: 42.0334,
@@ -514,22 +515,40 @@ const calculateETA = (method) => {
   }
 };
 
-async function warningSystem(){
-    const geojson = await fetch('./filtered.geojson');
+//   useEffect(() => {
+// function warningSystem() = async () =>{
+//   const geojson = GEOJSON_URL
+//   const response = await fetch(GEOJSON_URL);
+// }
+// }, []);
 
-  geojson.features.forEach((feature, index) => {
-    const props = feature.properties;
+  useEffect(() => {
+    const checkWarningStatus = async () => {
+      try {
+        const response = await fetch(GEOJSON_URL);
+        const data = await response.json();
 
-    console.log(`Feature ${index}:`);
-    console.log("  STATUS:", props.STATUS);
+        if (data.features && data.features.length > 0) {
+          const firstFeatureStatus = data.features[0].properties.status;
 
-    if(props.STATUS === 1){
-        return `There are some unfinished paths along this route!`
-    }else{
-        return `This route is safe!`
-    }
-  });
-}
+          // We could edit this system further to allow user input and use the data we get to set it equal to the setWarning state variable and edit the messages like that.
+          // 10/29
+          if (firstFeatureStatus) {
+            setWarningStatus(`Area Status: ${firstFeatureStatus}`);
+          } else {
+            setWarningStatus('No current warnings.');
+          }
+        } else {
+          setWarningStatus('No sidewalk data found.');
+        }
+      } catch (err) {
+        console.log('Error checking warnings:', err.message);
+        setWarningStatus('Warning check failed.');
+      }
+    };
+
+    checkWarningStatus();
+  }, []); // Empty dependency array means it runs once on mount
 
   const MenuItems = () => (
     <View style={styles.menuContent}>
@@ -638,7 +657,7 @@ async function warningSystem(){
                 </View>
                 <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>Warnings:</Text>
-                  <Text style={styles.routeValue}>{warningSystem}</Text>
+                  <Text style={styles.routeValue}>{warningStatus}</Text>
                 </View>
               </View>
             )}
