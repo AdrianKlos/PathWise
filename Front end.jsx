@@ -48,7 +48,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
 
   const fetchSuggestions = async (searchText) => {
     if (!MAPBOX_ACCESS_TOKEN || !suggestionsShown) {
-      console.warn('MapBox token missing or suggestions disabled');
+      //console.warn('MapBox token missing or suggestions disabled');
       return;
     }
 
@@ -67,7 +67,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
       const data = await response.json();
       setSuggestions(data.suggestions || []);
     } catch (error) {
-      console.error('Error fetching suggestions:', error);
+      //console.error('Error fetching suggestions:', error);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
@@ -80,7 +80,7 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
 
   const handleSuggestionSelect = async (suggestion) => {
     if (!MAPBOX_ACCESS_TOKEN) {
-      console.warn('Please add your MapBox access token');
+      //console.warn('Please add your MapBox access token');
       return;
     }
 
@@ -101,14 +101,14 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
         setShowSuggestions(false);
 
         suggestionsShown = false;
-        console.log('Suggestions disabled:', suggestionsShown);
+        //console.log('Suggestions disabled:', suggestionsShown);
 
         if (onPlaceSelect) {
           onPlaceSelect(place);
         }
       }
     } catch (error) {
-      console.error('Error retrieving place details:', error);
+      //console.error('Error retrieving place details:', error);
     }
   };
 
@@ -247,12 +247,12 @@ const PathWise = () => {
         setSidewalkData(data);
 
         if (data.features && data.features.length > 0) {
-          console.log('GeoJSON Loaded', `Features: ${data.features.length}`);
+          //console.log('GeoJSON Loaded', `Features: ${data.features.length}`);
         } else {
-          console.log('No features found in GeoJSON');
+          //console.log('No features found in GeoJSON');
         }
       } catch (err) {
-        console.log('Error loading GeoJSON', err.message);
+        //console.log('Error loading GeoJSON', err.message);
       }
     };
 
@@ -263,7 +263,7 @@ const PathWise = () => {
     const getUserLocation = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        console.log('Permission status:', status);
+        //console.log('Permission status:', status);
 
         if (status !== 'granted') {
           Alert.alert('Permission denied', 'Cannot access your location');
@@ -271,20 +271,20 @@ const PathWise = () => {
         }
 
         const location = await Location.getCurrentPositionAsync({});
-        console.log('Location obtained:', location);
+        //console.log('Location obtained:', location);
 
         setPointA({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         });
 
-        console.log(
+        //console.log(
           'Point A Set',
           `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`
         );
       } catch (error) {
-        console.log('Error', 'Failed to get location');
-        console.error('Error getting location:', error);
+        //console.log('Error', 'Failed to get location');
+        //console.error('Error getting location:', error);
       }
     };
 
@@ -359,7 +359,7 @@ const PathWise = () => {
     setShowTransportOptions(false);
     setShowRouteInfo(true);
     const eta = calculateETA(method);
-    console.log(eta);
+    //console.log(eta);
   };
 
   const computeSidewalkPath = (start, end) => {
@@ -491,7 +491,7 @@ const PathWise = () => {
         route.push(end);
       }
 
-      console.log('Route generated:', route.length, 'points');
+      //console.log('Route generated:', route.length, 'points');
       return route;
     } catch (err) {
       Alert.alert('Error computing path', err.message || JSON.stringify(err));
@@ -517,7 +517,7 @@ const PathWise = () => {
           setWarningStatus('No sidewalk data found.');
         }
       } catch (err) {
-        console.log('Error checking warnings:', err.message);
+        //console.log('Error checking warnings:', err.message);
         setWarningStatus('Warning check failed.');
       }
     };
