@@ -158,6 +158,7 @@ const handleSearch = () => {
   }
 };
 const PathWise = () => {
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showRouteInfo, setShowRouteInfo] = useState(false);
@@ -176,60 +177,73 @@ const PathWise = () => {
     longitudeDelta: 0.0421,
   };
 
-    // 10/27/25 - Completed the ETA system, currently the coordinates are hardcoded so we will need to figure out a way of getting the points (couldn't figure it out)
-  const speeds = {
-        walk: 1.4, bike: 4.16
-  };
-const calculateETA = (method) => {
 
-  let distanceKm = haversineDistance(pointA, pointB)
 
-  let travelTimeHours = distanceKm / speeds.bike; 
-  
-  const travelTimeMs = travelTimeHours * 60 * 60 * 1000;
-  const currentTimestamp = new Date().getTime(); // This returns a large number (e.g., 1761695223000)
-  
-  let etaTimestamp = travelTimeMs + currentTimestamp; 
-  let eta = new Date(etaTimestamp);
-  
-  const etaFormatted = eta.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-});
 
-console.log(`Travel Time (in Hours): ${travelTimeHours.toFixed(2)}`);
-console.log(`Eta Time: ${etaFormatted}`);
-Alert.alert(`Arrival Time: ${etaFormatted}`)
 
-return `${etaFormatted}`;
-  };
+
+
+const speeds = {
+  Walking: 1.4, // meters per second (approx. 5 km/h)
+  Biking: 4.16, // meters per second (approx. 15 km/h)
+};
 
 function haversineDistance(pointA, pointB) {
-  const R = 6371; // Earth's radius in kilometers
+  if (!pointA || !pointB) return 0;
 
-  // Destructure latitude and longitude from each point array
-  const [lat1, lon1] = pointA;
-  const [lat2, lon2] = pointB;
+  const R = 6371; // Earth radius in km
+  const { latitude: lat1, longitude: lon1 } = pointA;
+  const { latitude: lat2, longitude: lon2 } = pointB;
 
-  // Convert degrees to radians
-  const lat1Rad = lat1 * (Math.PI / 180);
-  const lat2Rad = lat2 * (Math.PI / 180);
-  const dlat = (lat2 - lat1) * (Math.PI / 180);
-  const dlon = (lon2 - lon1) * (Math.PI / 180);
+  const toRad = (deg) => (deg * Math.PI) / 180;
 
-  // Haversine formula
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
   const a =
-    Math.sin(dlat / 2) ** 2 +
-    Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-    Math.sin(dlon / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return R * c; // distance in kilometers
+  return R * c; // km
 }
 
+const calculateETA = (method) => {
+  if (!pointA || !pointB) {
+    Alert.alert('Missing coordinates', 'Both start and end points are required.');
+    return '--';
+  }
 
+  const distanceKm = haversineDistance(pointA, pointB);
+
+  if (!distanceKm || !speeds[method]) {
+    Alert.alert('Invalid input', 'Check transport method and distance.');
+    return '--';
+  }
+
+  // Convert speed (m/s) → km/h
+  const speedKmH = speeds[method] * 3.6;
+  const travelTimeHours = distanceKm / speedKmH;
+  const travelTimeMs = travelTimeHours * 3600 * 1000;
+  const etaTimestamp = Date.now() + travelTimeMs;
+  const eta = new Date(etaTimestamp);
+
+  const etaFormatted = eta.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  console.log(`Distance: ${distanceKm.toFixed(2)} km`);
+  console.log(`Speed: ${speedKmH.toFixed(1)} km/h`);
+  console.log(`Travel Time: ${(travelTimeHours * 60).toFixed(1)} minutes`);
+  console.log(`ETA: ${etaFormatted}`);
+
+  return `${etaFormatted}`;
+};
 
   useEffect(() => {
     const loadGeoJSON = async () => {
@@ -328,6 +342,7 @@ function haversineDistance(pointA, pointB) {
           endCoords
         )}`
       );
+      setShowRouteInfo(true)
 
       // --- Compute sidewalk path ---
       const routeCoordinates = computeSidewalkPath(startCoords, endCoords);
@@ -606,12 +621,8 @@ function haversineDistance(pointA, pointB) {
                 <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>ETA:</Text>
                   <Text style={styles.routeValue}>
-                    {transportMethod ? calculateETA(transportMethod) : '-- min'}
+                    {transportMethod ? calculateETA(transportMethod) : '--'}
                   </Text>
-                </View>
-                <View style={styles.routeDetail}>
-                  <Text style={styles.routeLabel}>Distance:</Text>
-                  <Text style={styles.routeValue}>-- km</Text>
                 </View>
                 <View style={styles.routeDetail}>
                   <Text style={styles.routeLabel}>Warnings:</Text>
