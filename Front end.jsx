@@ -569,7 +569,7 @@ const PathWise = () => {
       <View style={styles.creditsSection}>
         <Text style={[styles.creditsSectionTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>Development Team</Text>
         <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Adrian Klos</Text>
-        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Hamndan Sheikh</Text>
+        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Hamdan Sheikh</Text>
         <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Peter George</Text>
       </View>
       
