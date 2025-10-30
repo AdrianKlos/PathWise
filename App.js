@@ -284,12 +284,12 @@ const calculateETA = (method) => {
           longitude: location.coords.longitude,
         });
 
-        Alert.alert(
+        console.log(
           'Point A Set',
           `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`
         );
       } catch (error) {
-        Alert.alert('Error', 'Failed to get location');
+        console.log('Error', 'Failed to get location');
         console.error('Error getting location:', error);
       }
     };
@@ -301,7 +301,6 @@ const calculateETA = (method) => {
     try {
       // --- Extract coordinates from the selected place ---
       let latitude, longitude;
-      calculateETA()
 
       if (
         place?.geometry?.coordinates &&
@@ -362,6 +361,8 @@ const calculateETA = (method) => {
     } catch (err) {
       Alert.alert('Error', err.message || JSON.stringify(err));
     }
+    calculateETA()
+    setShowTransportOptions(true)
   };
 
   const handleTransportSelect = (method) => {
