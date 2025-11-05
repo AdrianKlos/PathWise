@@ -1,4 +1,4 @@
-Files in this Repository:
+Files in this repository:
 1. frontEnd.jsx
 2. generateSidewalks.py
 3. SchaumburgOnly.py
