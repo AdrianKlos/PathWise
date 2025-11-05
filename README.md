@@ -1,5 +1,5 @@
 Files in this repository:
-1. frontEnd.jsx
+1. FrontEnd.jsx
 2. generateSidewalks.py
 3. SchaumburgOnly.py
 4. sorting.py
