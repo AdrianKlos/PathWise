@@ -21,11 +21,18 @@ const GEOJSON_URL =
 
 // Global variable
 let suggestionsShown = true;
+let totalxp=0;
 
 // Theme context for dark mode
 const ThemeContext = React.createContext();
 
-const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMode, textScale }) => {
+const MapBoxAutocomplete = ({
+  onPlaceSelect,
+  searchQuery,
+  setSearchQuery,
+  darkMode,
+  textScale,
+}) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -116,8 +123,22 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
     <TouchableOpacity
       style={[styles.suggestionItem, darkMode && styles.darkSuggestionItem]}
       onPress={() => handleSuggestionSelect(item)}>
-      <Text style={[styles.suggestionTitle, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{item.name}</Text>
-      <Text style={[styles.suggestionAddress, darkMode && styles.darkText, { fontSize: 14 * textScale }]}>{item.place_formatted}</Text>
+      <Text
+        style={[
+          styles.suggestionTitle,
+          darkMode && styles.darkText,
+          { fontSize: 16 * textScale },
+        ]}>
+        {item.name}
+      </Text>
+      <Text
+        style={[
+          styles.suggestionAddress,
+          darkMode && styles.darkText,
+          { fontSize: 14 * textScale },
+        ]}>
+        {item.place_formatted}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -125,12 +146,16 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
     <View style={styles.autocompleteContainer}>
       <View style={styles.searchInputContainer}>
         <TextInput
-          style={[styles.searchInput, darkMode && styles.darkSearchInput, { fontSize: 16 * textScale }]}
+          style={[
+            styles.searchInput,
+            darkMode && styles.darkSearchInput,
+            { fontSize: 16 * textScale },
+          ]}
           placeholder="Enter destination..."
           placeholderTextColor={darkMode ? '#ccc' : '#666'}
-          value={searchQuery}          
+          value={searchQuery}
           onChangeText={(text) => {
-            suggestionsShown = true;  
+            suggestionsShown = true;
             setSearchQuery(text);
           }}
           onFocus={() => {
@@ -140,11 +165,24 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
           }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
         />
-        {isLoading && <Text style={[styles.loadingText, darkMode && styles.darkText, { fontSize: 12 * textScale }]}>Searching...</Text>}
+        {isLoading && (
+          <Text
+            style={[
+              styles.loadingText,
+              darkMode && styles.darkText,
+              { fontSize: 12 * textScale },
+            ]}>
+            Searching...
+          </Text>
+        )}
       </View>
 
       {showSuggestions && suggestions.length > 0 && suggestionsShown && (
-        <View style={[styles.suggestionsList, darkMode && styles.darkSuggestionsList]}>
+        <View
+          style={[
+            styles.suggestionsList,
+            darkMode && styles.darkSuggestionsList,
+          ]}>
           <FlatList
             data={suggestions}
             renderItem={renderSuggestion}
@@ -176,6 +214,7 @@ const PathWise = () => {
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [sidewalkData, setSidewalkData] = useState(null);
   const [warningStatus, setWarningStatus] = useState('Checking...');
+  const [xpMessage, setXpMessage] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [textScale, setTextScale] = useState(1);
 
@@ -205,9 +244,7 @@ const PathWise = () => {
 
     const a =
       Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) ** 2;
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -240,6 +277,22 @@ const PathWise = () => {
     });
 
     return `${etaFormatted}`;
+  };
+  const handleFinishedWalking = async () => {
+    try {
+      if (!pointA) return;
+
+      const distanceKm = haversineDistance(pointA, pointB);
+      const distanceMeters = Math.round(distanceKm * 1000);
+
+      const xpGained = distanceMeters;
+
+      setXpMessage(
+        `🎉 You gained ${xpGained} XP for walking ${distanceMeters} meters!`
+      );
+    } catch (err) {
+      console.log('XP calculation error:', err);
+    }
   };
 
   useEffect(() => {
@@ -330,21 +383,21 @@ const PathWise = () => {
       };
 
       //alert.alert(
-        'Coordinate Check',
+      'Coordinate Check',
         `Start: ${JSON.stringify(startCoords)}\nEnd: ${JSON.stringify(
           endCoords
-        )}`
+        )}`;
       //);
-      setShowRouteInfo(true)
+      setShowRouteInfo(true);
 
       const routeCoordinates = computeSidewalkPath(startCoords, endCoords);
 
       if (routeCoordinates && routeCoordinates.length > 0) {
         //alert.alert(
-          'Path Debug',
+        'Path Debug',
           `Points in path: ${
             routeCoordinates.length
-          }\nFirst 5: ${JSON.stringify(routeCoordinates.slice(0, 5))}`
+          }\nFirst 5: ${JSON.stringify(routeCoordinates.slice(0, 5))}`;
         //);
         setRouteCoordinates(routeCoordinates);
       } else {
@@ -353,8 +406,8 @@ const PathWise = () => {
     } catch (err) {
       //alert.alert('Error', err.message || JSON.stringify(err));
     }
-    calculateETA()
-    setShowTransportOptions(true)
+    calculateETA();
+    setShowTransportOptions(true);
   };
 
   const handleTransportSelect = (method) => {
@@ -415,7 +468,12 @@ const PathWise = () => {
         let nearest = null;
         let minDist = Infinity;
         for (let node of nodes) {
-          const d = haversine(point.latitude, point.longitude, node.lat, node.lng);
+          const d = haversine(
+            point.latitude,
+            point.longitude,
+            node.lat,
+            node.lng
+          );
           if (d < minDist) {
             minDist = d;
             nearest = node;
@@ -427,10 +485,7 @@ const PathWise = () => {
       const startNode = findNearestNode(start);
       const endNode = findNearestNode(end);
 
-      if (
-        startNode.lat === endNode.lat &&
-        startNode.lng === endNode.lng
-      ) {
+      if (startNode.lat === endNode.lat && startNode.lng === endNode.lng) {
         return [start, end];
       }
 
@@ -531,12 +586,23 @@ const PathWise = () => {
   const MenuItems = () => (
     <View style={[styles.menuContent, darkMode && styles.darkMenuContent]}>
       <TouchableOpacity
-        style={[styles.menuItem, activeTab === 'Map' && styles.activeMenuItem, darkMode && styles.darkMenuItem]}
+        style={[
+          styles.menuItem,
+          activeTab === 'Map' && styles.activeMenuItem,
+          darkMode && styles.darkMenuItem,
+        ]}
         onPress={() => {
           setActiveTab('Map');
           setIsMenuOpen(false);
         }}>
-        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Map</Text>
+        <Text
+          style={[
+            styles.menuText,
+            darkMode && styles.darkText,
+            { fontSize: 18 * textScale },
+          ]}>
+          Map
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[
@@ -548,7 +614,14 @@ const PathWise = () => {
           setActiveTab('Settings');
           setIsMenuOpen(false);
         }}>
-        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Settings</Text>
+        <Text
+          style={[
+            styles.menuText,
+            darkMode && styles.darkText,
+            { fontSize: 18 * textScale },
+          ]}>
+          Settings
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[
@@ -560,26 +633,81 @@ const PathWise = () => {
           setActiveTab('Credits');
           setIsMenuOpen(false);
         }}>
-        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Credits</Text>
+        <Text
+          style={[
+            styles.menuText,
+            darkMode && styles.darkText,
+            { fontSize: 18 * textScale },
+          ]}>
+          Credits
+        </Text>
       </TouchableOpacity>
     </View>
   );
 
   const CreditsContent = () => (
     <View style={styles.creditsContainer}>
-      <Text style={[styles.creditsTitle, darkMode && styles.darkText, { fontSize: 24 * textScale }]}>Credits</Text>
-      
+      <Text
+        style={[
+          styles.creditsTitle,
+          darkMode && styles.darkText,
+          { fontSize: 24 * textScale },
+        ]}>
+        Credits
+      </Text>
+
       <View style={styles.creditsSection}>
-        <Text style={[styles.creditsSectionTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>Development Team</Text>
-        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Adrian Klos</Text>
-        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Hamndan Sheikh</Text>
-        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Peter George</Text>
+        <Text
+          style={[
+            styles.creditsSectionTitle,
+            darkMode && styles.darkText,
+            { fontSize: 20 * textScale },
+          ]}>
+          Development Team
+        </Text>
+        <Text
+          style={[
+            styles.creditsText,
+            darkMode && styles.darkText,
+            { fontSize: 16 * textScale },
+          ]}>
+          Adrian Klos
+        </Text>
+        <Text
+          style={[
+            styles.creditsText,
+            darkMode && styles.darkText,
+            { fontSize: 16 * textScale },
+          ]}>
+          Hamndan Sheikh
+        </Text>
+        <Text
+          style={[
+            styles.creditsText,
+            darkMode && styles.darkText,
+            { fontSize: 16 * textScale },
+          ]}>
+          Peter George
+        </Text>
       </View>
-      
+
       <View style={styles.creditsSection}>
-        <Text style={[styles.creditsSectionTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>Data Source</Text>
-        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
-          Sidewalk data originally collected from:{'\n'}The Chicago Metropolitan Agency for Planning
+        <Text
+          style={[
+            styles.creditsSectionTitle,
+            darkMode && styles.darkText,
+            { fontSize: 20 * textScale },
+          ]}>
+          Data Source
+        </Text>
+        <Text
+          style={[
+            styles.creditsText,
+            darkMode && styles.darkText,
+            { fontSize: 16 * textScale },
+          ]}>
+          Sidewalk data originally collected from:{'\n'}The Chicago Metropolitan
+          Agency for Planning
         </Text>
       </View>
     </View>
@@ -587,10 +715,24 @@ const PathWise = () => {
 
   const SettingsContent = () => (
     <View style={styles.settingsContainer}>
-      <Text style={[styles.settingsTitle, darkMode && styles.darkText, { fontSize: 24 * textScale }]}>Settings</Text>
-      
+      <Text
+        style={[
+          styles.settingsTitle,
+          darkMode && styles.darkText,
+          { fontSize: 24 * textScale },
+        ]}>
+        Settings
+      </Text>
+
       <View style={styles.settingItem}>
-        <Text style={[styles.settingLabel, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Dark Mode</Text>
+        <Text
+          style={[
+            styles.settingLabel,
+            darkMode && styles.darkText,
+            { fontSize: 18 * textScale },
+          ]}>
+          Dark Mode
+        </Text>
         <Switch
           value={darkMode}
           onValueChange={setDarkMode}
@@ -598,9 +740,16 @@ const PathWise = () => {
           thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
         />
       </View>
-      
+
       <View style={styles.settingItem}>
-        <Text style={[styles.settingLabel, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Large Text</Text>
+        <Text
+          style={[
+            styles.settingLabel,
+            darkMode && styles.darkText,
+            { fontSize: 18 * textScale },
+          ]}>
+          Large Text
+        </Text>
         <Switch
           value={textScale > 1}
           onValueChange={(value) => setTextScale(value ? 1.3 : 1)}
@@ -622,7 +771,14 @@ const PathWise = () => {
           onPress={() => setIsMenuOpen(true)}>
           <Ionicons name="menu" size={28} color={darkMode ? '#fff' : '#333'} />
         </TouchableOpacity>
-        <Text style={[styles.appTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>PathWise</Text>
+        <Text
+          style={[
+            styles.appTitle,
+            darkMode && styles.darkText,
+            { fontSize: 20 * textScale },
+          ]}>
+          PathWise
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -644,7 +800,11 @@ const PathWise = () => {
               )}
             </MapView>
 
-            <View style={[styles.searchContainer, darkMode && styles.darkSearchContainer]}>
+            <View
+              style={[
+                styles.searchContainer,
+                darkMode && styles.darkSearchContainer,
+              ]}>
               <MapBoxAutocomplete
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
@@ -660,36 +820,118 @@ const PathWise = () => {
             </View>
 
             {showTransportOptions && (
-              <View style={[styles.transportOptions, darkMode && styles.darkTransportOptions]}>
+              <View
+                style={[
+                  styles.transportOptions,
+                  darkMode && styles.darkTransportOptions,
+                ]}>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.walkingButton]}
                   onPress={() => handleTransportSelect('Walking')}>
-                  <Text style={[styles.transportButtonText, { fontSize: 16 * textScale }]}>Walking</Text>
+                  <Text
+                    style={[
+                      styles.transportButtonText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    Walking
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.bikingButton]}
                   onPress={() => handleTransportSelect('Biking')}>
-                  <Text style={[styles.transportButtonText, { fontSize: 16 * textScale }]}>Biking</Text>
+                  <Text
+                    style={[
+                      styles.transportButtonText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    Biking
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {showRouteInfo && (
-              <View style={[styles.routeInfo, darkMode && styles.darkRouteInfo]}>
+              <View
+                style={[styles.routeInfo, darkMode && styles.darkRouteInfo]}>
                 <View style={styles.routeDetail}>
-                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Transport:</Text>
-                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{transportMethod}</Text>
+                  <Text
+                    style={[
+                      styles.routeLabel,
+                      darkMode && styles.darkText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    Transport:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.routeValue,
+                      darkMode && styles.darkText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    {transportMethod}
+                  </Text>
                 </View>
                 <View style={styles.routeDetail}>
-                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>ETA:</Text>
-                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
+                  <Text
+                    style={[
+                      styles.routeLabel,
+                      darkMode && styles.darkText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    ETA:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.routeValue,
+                      darkMode && styles.darkText,
+                      { fontSize: 16 * textScale },
+                    ]}>
                     {transportMethod ? calculateETA(transportMethod) : '--'}
                   </Text>
                 </View>
                 <View style={styles.routeDetail}>
-                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Warnings:</Text>
-                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{warningStatus}</Text>
+                  <Text
+                    style={[
+                      styles.routeLabel,
+                      darkMode && styles.darkText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    Warnings:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.routeValue,
+                      darkMode && styles.darkText,
+                      { fontSize: 16 * textScale },
+                    ]}>
+                    {warningStatus}
+                  </Text>
                 </View>
+              </View>
+            )}
+
+            {/* ── FINISHED WALKING BUTTON ── */}
+            <TouchableOpacity
+              style={[
+                styles.finishedButton,
+                darkMode && styles.darkFinishedButton,
+              ]}
+              onPress={handleFinishedWalking}>
+              <Text
+                style={[
+                  styles.finishedButtonText,
+                  { fontSize: 16 * textScale },
+                ]}>
+                Finished Walking
+              </Text>
+            </TouchableOpacity>
+
+            {/* ── XP RESULT BANNER ── */}
+            {xpMessage !== '' && (
+              <View style={[styles.xpBanner, darkMode && styles.darkXpBanner]}>
+                <Text style={[styles.xpText, { fontSize: 18 * textScale }]}>
+                  {xpMessage}
+                </Text>
               </View>
             )}
           </>
@@ -709,7 +951,11 @@ const PathWise = () => {
           style={styles.menuOverlay}
           activeOpacity={1}
           onPressOut={() => setIsMenuOpen(false)}>
-          <View style={[styles.menuContainer, darkMode && styles.darkMenuContainer]}>
+          <View
+            style={[
+              styles.menuContainer,
+              darkMode && styles.darkMenuContainer,
+            ]}>
             <MenuItems />
           </View>
         </TouchableOpacity>
@@ -1017,6 +1263,53 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 18,
     fontWeight: '500',
+  },
+  // ── NEW: Finished Walking button styles ──
+  finishedButton: {
+    position: 'absolute',
+    bottom: 30,
+    alignSelf: 'center',
+    backgroundColor: '#34C759',
+    paddingHorizontal: 30,
+    paddingVertical: 14,
+    borderRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  darkFinishedButton: {
+    backgroundColor: '#28A745',
+  },
+  finishedButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  // ── NEW: XP banner styles ──
+  xpBanner: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  darkXpBanner: {
+    backgroundColor: 'rgba(45, 45, 45, 0.95)',
+  },
+  xpText: {
+    fontWeight: '700',
+    color: '#34C759',
+    textAlign: 'center',
   },
 });
 
