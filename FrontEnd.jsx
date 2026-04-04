@@ -9,10 +9,11 @@ import {
   Modal,
   FlatList,
   Switch,
+  Button,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import { alert } from 'react-native';
 import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
@@ -21,18 +22,11 @@ const GEOJSON_URL =
 
 // Global variable
 let suggestionsShown = true;
-let totalxp=0;
 
 // Theme context for dark mode
 const ThemeContext = React.createContext();
 
-const MapBoxAutocomplete = ({
-  onPlaceSelect,
-  searchQuery,
-  setSearchQuery,
-  darkMode,
-  textScale,
-}) => {
+const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMode, textScale }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +39,6 @@ const MapBoxAutocomplete = ({
       const delayDebounceFn = setTimeout(() => {
         fetchSuggestions(searchQuery);
       }, 300);
-
       return () => clearTimeout(delayDebounceFn);
     } else {
       setSuggestions([]);
@@ -58,7 +51,6 @@ const MapBoxAutocomplete = ({
       console.warn('MapBox token missing or suggestions disabled');
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -66,11 +58,7 @@ const MapBoxAutocomplete = ({
           searchText
         )}&access_token=${MAPBOX_ACCESS_TOKEN}&session_token=test-session&types=address,place,poi&country=us&proximity=-88.0834,42.0334&limit=5`
       );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setSuggestions(data.suggestions || []);
     } catch (error) {
@@ -79,10 +67,7 @@ const MapBoxAutocomplete = ({
     } finally {
       setIsLoading(false);
     }
-
-    if (suggestionsShown) {
-      setShowSuggestions(true);
-    }
+    if (suggestionsShown) setShowSuggestions(true);
   };
 
   const handleSuggestionSelect = async (suggestion) => {
@@ -90,29 +75,19 @@ const MapBoxAutocomplete = ({
       console.warn('Please add your MapBox access token');
       return;
     }
-
     try {
       const response = await fetch(
         `https://api.mapbox.com/search/searchbox/v1/retrieve/${suggestion.mapbox_id}?session_token=test-session&access_token=${MAPBOX_ACCESS_TOKEN}`
       );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-
       if (data.features && data.features[0]) {
         const place = data.features[0];
         setSearchQuery(place.properties.full_address || place.properties.name);
         setShowSuggestions(false);
-
         suggestionsShown = false;
         console.log('Suggestions disabled:', suggestionsShown);
-
-        if (onPlaceSelect) {
-          onPlaceSelect(place);
-        }
+        if (onPlaceSelect) onPlaceSelect(place);
       }
     } catch (error) {
       console.error('Error retrieving place details:', error);
@@ -123,22 +98,8 @@ const MapBoxAutocomplete = ({
     <TouchableOpacity
       style={[styles.suggestionItem, darkMode && styles.darkSuggestionItem]}
       onPress={() => handleSuggestionSelect(item)}>
-      <Text
-        style={[
-          styles.suggestionTitle,
-          darkMode && styles.darkText,
-          { fontSize: 16 * textScale },
-        ]}>
-        {item.name}
-      </Text>
-      <Text
-        style={[
-          styles.suggestionAddress,
-          darkMode && styles.darkText,
-          { fontSize: 14 * textScale },
-        ]}>
-        {item.place_formatted}
-      </Text>
+      <Text style={[styles.suggestionTitle, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{item.name}</Text>
+      <Text style={[styles.suggestionAddress, darkMode && styles.darkText, { fontSize: 14 * textScale }]}>{item.place_formatted}</Text>
     </TouchableOpacity>
   );
 
@@ -146,11 +107,7 @@ const MapBoxAutocomplete = ({
     <View style={styles.autocompleteContainer}>
       <View style={styles.searchInputContainer}>
         <TextInput
-          style={[
-            styles.searchInput,
-            darkMode && styles.darkSearchInput,
-            { fontSize: 16 * textScale },
-          ]}
+          style={[styles.searchInput, darkMode && styles.darkSearchInput, { fontSize: 16 * textScale }]}
           placeholder="Enter destination..."
           placeholderTextColor={darkMode ? '#ccc' : '#666'}
           value={searchQuery}
@@ -159,30 +116,18 @@ const MapBoxAutocomplete = ({
             setSearchQuery(text);
           }}
           onFocus={() => {
-            if (searchQuery.length > 2 && suggestionsShown) {
-              setShowSuggestions(true);
-            }
+            if (searchQuery.length > 2 && suggestionsShown) setShowSuggestions(true);
           }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
         />
         {isLoading && (
-          <Text
-            style={[
-              styles.loadingText,
-              darkMode && styles.darkText,
-              { fontSize: 12 * textScale },
-            ]}>
+          <Text style={[styles.loadingText, darkMode && styles.darkText, { fontSize: 12 * textScale }]}>
             Searching...
           </Text>
         )}
       </View>
-
       {showSuggestions && suggestions.length > 0 && suggestionsShown && (
-        <View
-          style={[
-            styles.suggestionsList,
-            darkMode && styles.darkSuggestionsList,
-          ]}>
+        <View style={[styles.suggestionsList, darkMode && styles.darkSuggestionsList]}>
           <FlatList
             data={suggestions}
             renderItem={renderSuggestion}
@@ -215,6 +160,7 @@ const PathWise = () => {
   const [sidewalkData, setSidewalkData] = useState(null);
   const [warningStatus, setWarningStatus] = useState('Checking...');
   const [xpMessage, setXpMessage] = useState('');
+  const [totalXP, setTotalXP] = useState(0); // ← was a broken global, now proper state
   const [darkMode, setDarkMode] = useState(false);
   const [textScale, setTextScale] = useState(1);
 
@@ -232,64 +178,43 @@ const PathWise = () => {
 
   function haversineDistance(pointA, pointB) {
     if (!pointA || !pointB) return 0;
-
     const R = 6371;
     const { latitude: lat1, longitude: lon1 } = pointA;
     const { latitude: lat2, longitude: lon2 } = pointB;
-
     const toRad = (deg) => (deg * Math.PI) / 180;
-
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-
     const a =
       Math.sin(dLat / 2) ** 2 +
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
     return R * c;
   }
 
   const calculateETA = (method) => {
-    if (!pointA || !pointB) {
-      //alert.alert('Missing coordinates', 'Both start and end points are required.');
-      return '--';
-    }
-
+    if (!pointA || !pointB) return '--';
     const distanceKm = haversineDistance(pointA, pointB);
-
-    if (!distanceKm || !speeds[method]) {
-      //alert.alert('Invalid input', 'Check transport method and distance.');
-      return '--';
-    }
-
+    if (!distanceKm || !speeds[method]) return '--';
     const speedKmH = speeds[method] * 3.6;
     const travelTimeHours = distanceKm / speedKmH;
     const travelTimeMs = travelTimeHours * 3600 * 1000;
     const etaTimestamp = Date.now() + travelTimeMs;
     const eta = new Date(etaTimestamp);
-
-    const etaFormatted = eta.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    return `${etaFormatted}`;
+    return eta.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
+
   const handleFinishedWalking = async () => {
     try {
       if (!pointA) return;
-
-      const distanceKm = haversineDistance(pointA, pointB);
+      const location = await Location.getCurrentPositionAsync({});
+      const current = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      const distanceKm = haversineDistance(pointA, current);
       const distanceMeters = Math.round(distanceKm * 1000);
-
-      const xpGained = distanceMeters;
-
-      setXpMessage(
-        `🎉 You gained ${xpGained} XP for walking ${distanceMeters} meters!`
-      );
+      setTotalXP(prev => prev + distanceMeters); // ← actually updates XP so the bar grows
+      setXpMessage(`🎉 You gained ${distanceMeters} XP for walking ${distanceMeters} meters!`);
     } catch (err) {
       console.log('XP calculation error:', err);
     }
@@ -301,7 +226,6 @@ const PathWise = () => {
         const response = await fetch(GEOJSON_URL);
         const data = await response.json();
         setSidewalkData(data);
-
         if (data.features && data.features.length > 0) {
           console.log('GeoJSON Loaded', `Features: ${data.features.length}`);
         } else {
@@ -311,7 +235,6 @@ const PathWise = () => {
         console.log('Error loading GeoJSON', err.message);
       }
     };
-
     loadGeoJSON();
   }, []);
 
@@ -320,41 +243,26 @@ const PathWise = () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         console.log('Permission status:', status);
-
-        if (status !== 'granted') {
-          //alert.alert('Permission denied', 'Cannot access your location');
-          return;
-        }
-
+        if (status !== 'granted') return;
         const location = await Location.getCurrentPositionAsync({});
         console.log('Location obtained:', location);
-
         setPointA({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         });
-
-        console.log(
-          'Point A Set',
-          `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`
-        );
+        console.log('Point A Set', `Lat: ${location.coords.latitude}\nLng: ${location.coords.longitude}`);
       } catch (error) {
         console.log('Error', 'Failed to get location');
         console.error('Error getting location:', error);
       }
     };
-
     getUserLocation();
   }, []);
 
   const handlePlaceSelect = async (place) => {
     try {
       let latitude, longitude;
-
-      if (
-        place?.geometry?.coordinates &&
-        Array.isArray(place.geometry.coordinates)
-      ) {
+      if (place?.geometry?.coordinates && Array.isArray(place.geometry.coordinates)) {
         [longitude, latitude] = place.geometry.coordinates;
       } else if (place?.geometry?.location) {
         latitude =
@@ -369,42 +277,19 @@ const PathWise = () => {
         latitude = place.latitude;
         longitude = place.longitude;
       } else {
-        //alert.alert('Error', 'No valid coordinates found — using fallback.');
         latitude = 42.0334;
         longitude = -88.0834;
       }
-
       const endCoords = { latitude, longitude };
       setPointB(endCoords);
-
-      const startCoords = pointA || {
-        latitude: 42.025464,
-        longitude: -88.083289,
-      };
-
-      //alert.alert(
-      'Coordinate Check',
-        `Start: ${JSON.stringify(startCoords)}\nEnd: ${JSON.stringify(
-          endCoords
-        )}`;
-      //);
+      const startCoords = pointA || { latitude: 42.025464, longitude: -88.083289 };
       setShowRouteInfo(true);
-
       const routeCoordinates = computeSidewalkPath(startCoords, endCoords);
-
       if (routeCoordinates && routeCoordinates.length > 0) {
-        //alert.alert(
-        'Path Debug',
-          `Points in path: ${
-            routeCoordinates.length
-          }\nFirst 5: ${JSON.stringify(routeCoordinates.slice(0, 5))}`;
-        //);
         setRouteCoordinates(routeCoordinates);
-      } else {
-        //alert.alert('No Path', 'No valid route could be generated.');
       }
     } catch (err) {
-      //alert.alert('Error', err.message || JSON.stringify(err));
+      console.log('Error in handlePlaceSelect:', err);
     }
     calculateETA();
     setShowTransportOptions(true);
@@ -420,11 +305,7 @@ const PathWise = () => {
 
   const computeSidewalkPath = (start, end) => {
     try {
-      if (!sidewalkData?.features?.length) {
-        //alert.alert('Error', 'Sidewalk data not loaded!');
-        return [];
-      }
-
+      if (!sidewalkData?.features?.length) return [];
       const haversine = (lat1, lon1, lat2, lon2) => {
         const R = 6371e3;
         const toRad = (deg) => (deg * Math.PI) / 180;
@@ -432,15 +313,11 @@ const PathWise = () => {
         const dLon = toRad(lon2 - lon1);
         const a =
           Math.sin(dLat / 2) ** 2 +
-          Math.cos(toRad(lat1)) *
-            Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
         return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       };
-
       const nodes = [];
       const edges = [];
-
       sidewalkData.features.forEach((feature) => {
         if (feature.geometry?.type === 'LineString') {
           const coords = feature.geometry.coordinates;
@@ -458,37 +335,19 @@ const PathWise = () => {
           }
         }
       });
-
-      if (!nodes.length) {
-        //alert.alert('Error', 'No nodes in sidewalk network!');
-        return [];
-      }
-
+      if (!nodes.length) return [];
       const findNearestNode = (point) => {
         let nearest = null;
         let minDist = Infinity;
         for (let node of nodes) {
-          const d = haversine(
-            point.latitude,
-            point.longitude,
-            node.lat,
-            node.lng
-          );
-          if (d < minDist) {
-            minDist = d;
-            nearest = node;
-          }
+          const d = haversine(point.latitude, point.longitude, node.lat, node.lng);
+          if (d < minDist) { minDist = d; nearest = node; }
         }
         return nearest;
       };
-
       const startNode = findNearestNode(start);
       const endNode = findNearestNode(end);
-
-      if (startNode.lat === endNode.lat && startNode.lng === endNode.lng) {
-        return [start, end];
-      }
-
+      if (startNode.lat === endNode.lat && startNode.lng === endNode.lng) return [start, end];
       const key = (node) => `${node.lat.toFixed(6)},${node.lng.toFixed(6)}`;
       const graph = {};
       edges.forEach((e) => {
@@ -499,37 +358,25 @@ const PathWise = () => {
         graph[a].push({ node: e.to, dist: e.dist });
         graph[b].push({ node: e.from, dist: e.dist });
       });
-
       const dijkstra = (start, end) => {
         const startKey = key(start);
         const endKey = key(end);
         const dist = {};
         const prev = {};
         const pq = new Map();
-
         for (let nodeKey in graph) dist[nodeKey] = Infinity;
         dist[startKey] = 0;
         pq.set(startKey, 0);
-
         while (pq.size > 0) {
-          let [u, uDist] = [...pq.entries()].reduce((a, b) =>
-            a[1] < b[1] ? a : b
-          );
+          let [u, uDist] = [...pq.entries()].reduce((a, b) => a[1] < b[1] ? a : b);
           pq.delete(u);
-
           if (u === endKey) break;
-
           for (let neighbor of graph[u] || []) {
             const v = key(neighbor.node);
             const alt = uDist + neighbor.dist;
-            if (alt < dist[v]) {
-              dist[v] = alt;
-              prev[v] = u;
-              pq.set(v, alt);
-            }
+            if (alt < dist[v]) { dist[v] = alt; prev[v] = u; pq.set(v, alt); }
           }
         }
-
         const path = [];
         let u = endKey;
         while (u) {
@@ -537,22 +384,14 @@ const PathWise = () => {
           path.unshift({ latitude: lat, longitude: lng });
           u = prev[u];
         }
-
         if (path.length === 0) return [start, end];
         return path;
       };
-
       const route = dijkstra(startNode, endNode);
-
-      if (route.length === 1) {
-        route.unshift(start);
-        route.push(end);
-      }
-
+      if (route.length === 1) { route.unshift(start); route.push(end); }
       console.log('Route generated:', route.length, 'points');
       return route;
     } catch (err) {
-      //alert.alert('Error computing path', err.message || JSON.stringify(err));
       return [start, end];
     }
   };
@@ -562,10 +401,8 @@ const PathWise = () => {
       try {
         const response = await fetch(GEOJSON_URL);
         const data = await response.json();
-
         if (data.features && data.features.length > 0) {
           const firstFeatureStatus = data.features[0].properties.status;
-
           if (firstFeatureStatus) {
             setWarningStatus(`Area Status: ${firstFeatureStatus}`);
           } else {
@@ -579,135 +416,47 @@ const PathWise = () => {
         setWarningStatus('Warning check failed.');
       }
     };
-
     checkWarningStatus();
   }, []);
 
   const MenuItems = () => (
     <View style={[styles.menuContent, darkMode && styles.darkMenuContent]}>
       <TouchableOpacity
-        style={[
-          styles.menuItem,
-          activeTab === 'Map' && styles.activeMenuItem,
-          darkMode && styles.darkMenuItem,
-        ]}
-        onPress={() => {
-          setActiveTab('Map');
-          setIsMenuOpen(false);
-        }}>
-        <Text
-          style={[
-            styles.menuText,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Map
-        </Text>
+        style={[styles.menuItem, activeTab === 'Map' && styles.activeMenuItem, darkMode && styles.darkMenuItem]}
+        onPress={() => { setActiveTab('Map'); setIsMenuOpen(false); }}>
+        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Map</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[
-          styles.menuItem,
-          activeTab === 'Settings' && styles.activeMenuItem,
-          darkMode && styles.darkMenuItem,
-        ]}
-        onPress={() => {
-          setActiveTab('Settings');
-          setIsMenuOpen(false);
-        }}>
-        <Text
-          style={[
-            styles.menuText,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Settings
-        </Text>
+        style={[styles.menuItem, activeTab === 'Settings' && styles.activeMenuItem, darkMode && styles.darkMenuItem]}
+        onPress={() => { setActiveTab('Settings'); setIsMenuOpen(false); }}>
+        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Settings</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[
-          styles.menuItem,
-          activeTab === 'Credits' && styles.activeMenuItem,
-          darkMode && styles.darkMenuItem,
-        ]}
-        onPress={() => {
-          setActiveTab('Credits');
-          setIsMenuOpen(false);
-        }}>
-        <Text
-          style={[
-            styles.menuText,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Credits
-        </Text>
+        style={[styles.menuItem, activeTab === 'Credits' && styles.activeMenuItem, darkMode && styles.darkMenuItem]}
+        onPress={() => { setActiveTab('Credits'); setIsMenuOpen(false); }}>
+        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Credits</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.menuItem, activeTab === 'Progress' && styles.activeMenuItem, darkMode && styles.darkMenuItem]}
+        onPress={() => { setActiveTab('Progress'); setIsMenuOpen(false); }}>
+        <Text style={[styles.menuText, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Progress</Text>
       </TouchableOpacity>
     </View>
   );
 
   const CreditsContent = () => (
     <View style={styles.creditsContainer}>
-      <Text
-        style={[
-          styles.creditsTitle,
-          darkMode && styles.darkText,
-          { fontSize: 24 * textScale },
-        ]}>
-        Credits
-      </Text>
-
+      <Text style={[styles.creditsTitle, darkMode && styles.darkText, { fontSize: 24 * textScale }]}>Credits</Text>
       <View style={styles.creditsSection}>
-        <Text
-          style={[
-            styles.creditsSectionTitle,
-            darkMode && styles.darkText,
-            { fontSize: 20 * textScale },
-          ]}>
-          Development Team
-        </Text>
-        <Text
-          style={[
-            styles.creditsText,
-            darkMode && styles.darkText,
-            { fontSize: 16 * textScale },
-          ]}>
-          Adrian Klos
-        </Text>
-        <Text
-          style={[
-            styles.creditsText,
-            darkMode && styles.darkText,
-            { fontSize: 16 * textScale },
-          ]}>
-          Hamndan Sheikh
-        </Text>
-        <Text
-          style={[
-            styles.creditsText,
-            darkMode && styles.darkText,
-            { fontSize: 16 * textScale },
-          ]}>
-          Peter George
-        </Text>
+        <Text style={[styles.creditsSectionTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>Development Team</Text>
+        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Adrian Klos</Text>
+        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Hamndan Sheikh</Text>
+        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Peter George</Text>
       </View>
-
       <View style={styles.creditsSection}>
-        <Text
-          style={[
-            styles.creditsSectionTitle,
-            darkMode && styles.darkText,
-            { fontSize: 20 * textScale },
-          ]}>
-          Data Source
-        </Text>
-        <Text
-          style={[
-            styles.creditsText,
-            darkMode && styles.darkText,
-            { fontSize: 16 * textScale },
-          ]}>
-          Sidewalk data originally collected from:{'\n'}The Chicago Metropolitan
-          Agency for Planning
+        <Text style={[styles.creditsSectionTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>Data Source</Text>
+        <Text style={[styles.creditsText, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
+          Sidewalk data originally collected from:{'\n'}The Chicago Metropolitan Agency for Planning
         </Text>
       </View>
     </View>
@@ -715,24 +464,9 @@ const PathWise = () => {
 
   const SettingsContent = () => (
     <View style={styles.settingsContainer}>
-      <Text
-        style={[
-          styles.settingsTitle,
-          darkMode && styles.darkText,
-          { fontSize: 24 * textScale },
-        ]}>
-        Settings
-      </Text>
-
+      <Text style={[styles.settingsTitle, darkMode && styles.darkText, { fontSize: 24 * textScale }]}>Settings</Text>
       <View style={styles.settingItem}>
-        <Text
-          style={[
-            styles.settingLabel,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Dark Mode
-        </Text>
+        <Text style={[styles.settingLabel, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Dark Mode</Text>
         <Switch
           value={darkMode}
           onValueChange={setDarkMode}
@@ -740,16 +474,8 @@ const PathWise = () => {
           thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
         />
       </View>
-
       <View style={styles.settingItem}>
-        <Text
-          style={[
-            styles.settingLabel,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Large Text
-        </Text>
+        <Text style={[styles.settingLabel, darkMode && styles.darkText, { fontSize: 18 * textScale }]}>Large Text</Text>
         <Switch
           value={textScale > 1}
           onValueChange={(value) => setTextScale(value ? 1.3 : 1)}
@@ -760,25 +486,38 @@ const PathWise = () => {
     </View>
   );
 
+  const ProgressContent = () => (
+    <View style={styles.progressContainer}>
+      <Text style={[styles.progressTitle, darkMode && styles.darkText, { fontSize: 24 * textScale }]}>Progress ({totalXP} XP)</Text>
+      <View style={{ width: totalXP > 1000 ? 360 : totalXP, height: 20, borderRadius: 10, backgroundColor: '#007BFF' }} />
+      <View style={styles.progressShop}>
+        <Text style={[styles.progressText, darkMode && styles.darkText, {fontSize: 22}]}>Rewards</Text>
+        <Text style={[styles.progressText, darkMode && styles.darkText]}>$5 Starter Gift Card (Level 3)</Text>
+        <Image
+          source={require('./startergiftcard.PNG')}
+          style={{width: 320, height: 100}}
+        />
+        <Button title="Redeem" color="#841584" />
+        <Text style={[styles.progressText, darkMode && styles.darkText]}>Nintendo Switch (Level 8))</Text>
+        <Image
+          source={require('./nintendoswitch.PNG')}
+          style={{width: 320, height: 100}}
+        />
+        <Button title="Redeem" color="#841584" />
+      </View>
+    </View>
+  );
+
   const containerStyle = darkMode ? styles.darkContainer : styles.container;
   const headerStyle = darkMode ? styles.darkHeader : styles.header;
 
   return (
     <View style={containerStyle}>
       <View style={headerStyle}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setIsMenuOpen(true)}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => setIsMenuOpen(true)}>
           <Ionicons name="menu" size={28} color={darkMode ? '#fff' : '#333'} />
         </TouchableOpacity>
-        <Text
-          style={[
-            styles.appTitle,
-            darkMode && styles.darkText,
-            { fontSize: 20 * textScale },
-          ]}>
-          PathWise
-        </Text>
+        <Text style={[styles.appTitle, darkMode && styles.darkText, { fontSize: 20 * textScale }]}>PathWise</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -792,19 +531,11 @@ const PathWise = () => {
               {pointA && <Marker coordinate={pointA} title="You" />}
               {pointB && <Marker coordinate={pointB} title="Destination" />}
               {routeCoordinates.length > 0 && (
-                <Polyline
-                  coordinates={routeCoordinates}
-                  strokeColor="#007AFF"
-                  strokeWidth={4}
-                />
+                <Polyline coordinates={routeCoordinates} strokeColor="#007AFF" strokeWidth={4} />
               )}
             </MapView>
 
-            <View
-              style={[
-                styles.searchContainer,
-                darkMode && styles.darkSearchContainer,
-              ]}>
+            <View style={[styles.searchContainer, darkMode && styles.darkSearchContainer]}>
               <MapBoxAutocomplete
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
@@ -812,133 +543,65 @@ const PathWise = () => {
                 darkMode={darkMode}
                 textScale={textScale}
               />
-              <TouchableOpacity
-                style={styles.searchButton}
-                onPress={handleSearch}>
+              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
                 <Ionicons name="search" size={24 * textScale} color="#fff" />
               </TouchableOpacity>
             </View>
 
             {showTransportOptions && (
-              <View
-                style={[
-                  styles.transportOptions,
-                  darkMode && styles.darkTransportOptions,
-                ]}>
+              <View style={[styles.transportOptions, darkMode && styles.darkTransportOptions]}>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.walkingButton]}
                   onPress={() => handleTransportSelect('Walking')}>
-                  <Text
-                    style={[
-                      styles.transportButtonText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    Walking
-                  </Text>
+                  <Text style={[styles.transportButtonText, { fontSize: 16 * textScale }]}>Walking</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.bikingButton]}
                   onPress={() => handleTransportSelect('Biking')}>
-                  <Text
-                    style={[
-                      styles.transportButtonText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    Biking
-                  </Text>
+                  <Text style={[styles.transportButtonText, { fontSize: 16 * textScale }]}>Biking</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {showRouteInfo && (
-              <View
-                style={[styles.routeInfo, darkMode && styles.darkRouteInfo]}>
+              <View style={[styles.routeInfo, darkMode && styles.darkRouteInfo]}>
                 <View style={styles.routeDetail}>
-                  <Text
-                    style={[
-                      styles.routeLabel,
-                      darkMode && styles.darkText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    Transport:
-                  </Text>
-                  <Text
-                    style={[
-                      styles.routeValue,
-                      darkMode && styles.darkText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    {transportMethod}
-                  </Text>
+                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Transport:</Text>
+                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{transportMethod}</Text>
                 </View>
                 <View style={styles.routeDetail}>
-                  <Text
-                    style={[
-                      styles.routeLabel,
-                      darkMode && styles.darkText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    ETA:
-                  </Text>
-                  <Text
-                    style={[
-                      styles.routeValue,
-                      darkMode && styles.darkText,
-                      { fontSize: 16 * textScale },
-                    ]}>
+                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>ETA:</Text>
+                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
                     {transportMethod ? calculateETA(transportMethod) : '--'}
                   </Text>
                 </View>
                 <View style={styles.routeDetail}>
-                  <Text
-                    style={[
-                      styles.routeLabel,
-                      darkMode && styles.darkText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    Warnings:
-                  </Text>
-                  <Text
-                    style={[
-                      styles.routeValue,
-                      darkMode && styles.darkText,
-                      { fontSize: 16 * textScale },
-                    ]}>
-                    {warningStatus}
-                  </Text>
+                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Warnings:</Text>
+                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{warningStatus}</Text>
                 </View>
               </View>
             )}
 
-            {/* ── FINISHED WALKING BUTTON ── */}
+            {/* Finished Walking Button */}
             <TouchableOpacity
-              style={[
-                styles.finishedButton,
-                darkMode && styles.darkFinishedButton,
-              ]}
+              style={[styles.finishedButton, darkMode && styles.darkFinishedButton]}
               onPress={handleFinishedWalking}>
-              <Text
-                style={[
-                  styles.finishedButtonText,
-                  { fontSize: 16 * textScale },
-                ]}>
-                Finished Walking
-              </Text>
+              <Text style={[styles.finishedButtonText, { fontSize: 16 * textScale }]}>Finished Walking</Text>
             </TouchableOpacity>
 
-            {/* ── XP RESULT BANNER ── */}
+            {/* XP Result Banner */}
             {xpMessage !== '' && (
               <View style={[styles.xpBanner, darkMode && styles.darkXpBanner]}>
-                <Text style={[styles.xpText, { fontSize: 18 * textScale }]}>
-                  {xpMessage}
-                </Text>
+                <Text style={[styles.xpText, { fontSize: 18 * textScale }]}>{xpMessage}</Text>
               </View>
             )}
           </>
         ) : activeTab === 'Settings' ? (
           <SettingsContent />
-        ) : (
+        ) : activeTab === 'Credits' ? (
           <CreditsContent />
+        ) : (
+          <ProgressContent />
         )}
       </View>
 
@@ -951,11 +614,7 @@ const PathWise = () => {
           style={styles.menuOverlay}
           activeOpacity={1}
           onPressOut={() => setIsMenuOpen(false)}>
-          <View
-            style={[
-              styles.menuContainer,
-              darkMode && styles.darkMenuContainer,
-            ]}>
+          <View style={[styles.menuContainer, darkMode && styles.darkMenuContainer]}>
             <MenuItems />
           </View>
         </TouchableOpacity>
@@ -1217,7 +876,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
   },
-  // Credits styles
   creditsContainer: {
     flex: 1,
     padding: 20,
@@ -1241,7 +899,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 24,
   },
-  // Settings styles
   settingsContainer: {
     flex: 1,
     padding: 20,
@@ -1264,7 +921,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
   },
-  // ── NEW: Finished Walking button styles ──
+  progressContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  progressTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  progressText: {
+    fontSize: 16,
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  progressShop: {
+    fontSize: 16,
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  progressbarContainer: {
+    height: 10,
+    width: '100%',
+    backgroundColor: '#e0e0df',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  barStyle: {
+    height: '100%',
+    backgroundColor: '#3b5998',
+  },
   finishedButton: {
     position: 'absolute',
     bottom: 30,
@@ -1287,7 +974,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
-  // ── NEW: XP banner styles ──
   xpBanner: {
     position: 'absolute',
     bottom: 100,
