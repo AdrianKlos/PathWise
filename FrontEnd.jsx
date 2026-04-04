@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +8,10 @@ import {
   Modal,
   FlatList,
   Switch,
+  Pressable,
+  Alert,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { alert } from 'react-native';
@@ -154,8 +156,12 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
         </View>
       )}
     </View>
+    
   );
+
 };
+
+
 
 const handleSearch = () => {
   if (searchQuery.trim()) {
@@ -673,25 +679,57 @@ const PathWise = () => {
                 </TouchableOpacity>
               </View>
             )}
+import { Pressable, Text, StyleSheet } from 'react-native';
 
-            {showRouteInfo && (
-              <View style={[styles.routeInfo, darkMode && styles.darkRouteInfo]}>
-                <View style={styles.routeDetail}>
-                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Transport:</Text>
-                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{transportMethod}</Text>
-                </View>
-                <View style={styles.routeDetail}>
-                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>ETA:</Text>
-                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
-                    {transportMethod ? calculateETA(transportMethod) : '--'}
-                  </Text>
-                </View>
-                <View style={styles.routeDetail}>
-                  <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Warnings:</Text>
-                  <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>{warningStatus}</Text>
-                </View>
-              </View>
-            )}
+<Pressable 
+  style={({ pressed }) => [
+    { backgroundColor: pressed ? 'darkblue' : 'blue' },
+    styles.button
+  ]}
+  onPress={() => console.log('Pressed')}
+>
+  <Text style={styles.text}>Custom Button</Text>
+</Pressable>
+
+{showRouteInfo && (
+  <View style={[styles.routeInfo, darkMode && styles.darkRouteInfo]}>
+    <View style={styles.routeDetail}>
+      <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Transport:</Text>
+      <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
+        {typeof transportMethod === 'string' ? transportMethod : ''}
+      </Text>
+    </View>
+
+    <View style={styles.routeDetail}>
+      <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>ETA:</Text>
+      <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
+        {transportMethod ? calculateETA(transportMethod) : '--'}
+      </Text>
+    </View>
+
+    <View style={styles.routeDetail}>
+      <Text style={[styles.routeLabel, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>Warnings:</Text>
+      <Text style={[styles.routeValue, darkMode && styles.darkText, { fontSize: 16 * textScale }]}>
+        {String(warningStatus)}
+      </Text>
+    </View>
+
+    <Pressable 
+      style={({ pressed }) => [
+        styles.actionButton, 
+        darkMode && styles.darkActionButton,
+        { opacity: pressed ? 0.7 : 1, marginTop: 10 }
+      ]} 
+      onPress={() => console.log('Starting Route...')}
+    >
+      <Text style={[styles.buttonText, { fontSize: 16 * textScale }]}>
+        Start Navigation
+      </Text>
+    </Pressable>
+  </View>
+)}
+
+
           </>
         ) : activeTab === 'Settings' ? (
           <SettingsContent />
@@ -960,17 +998,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#333',
   },
-  tabContent: {
-    flex: 1,
-    justifyContent: 'center',
+  actionButton: {
+    backgroundColor: '#2196F3',
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
   },
-  tabTitle: {
-    fontSize: 24,
+  darkActionButton: {
+    backgroundColor: '#1976D2',
+  },
+  buttonText: {
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    marginBottom: 20,
   },
+
   // Credits styles
   creditsContainer: {
     flex: 1,
@@ -1017,6 +1059,21 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 18,
     fontWeight: '500',
+  },
+    actionButton: {
+    marginTop: 15,
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  darkActionButton: {
+    backgroundColor: '#1976D2',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 
