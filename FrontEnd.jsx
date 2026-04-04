@@ -128,8 +128,11 @@ const MapBoxAutocomplete = ({ onPlaceSelect, searchQuery, setSearchQuery, darkMo
           style={[styles.searchInput, darkMode && styles.darkSearchInput, { fontSize: 16 * textScale }]}
           placeholder="Enter destination..."
           placeholderTextColor={darkMode ? '#ccc' : '#666'}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={searchQuery}          
+          onChangeText={(text) => {
+            suggestionsShown = true;  
+            setSearchQuery(text);
+          }}
           onFocus={() => {
             if (searchQuery.length > 2 && suggestionsShown) {
               setShowSuggestions(true);
