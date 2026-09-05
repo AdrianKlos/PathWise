@@ -9,9 +9,7 @@ import {
   Modal,
   FlatList,
   Switch,
-  Button,
   Image,
-  KeyboardAvoidingView,
   Keyboard,
   Pressable,
 } from 'react-native';
@@ -20,7 +18,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  Easing 
+  Easing,
 } from 'react-native-reanimated';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import Svg, { Path } from 'react-native-svg';
@@ -145,7 +143,7 @@ const MapBoxAutocomplete = ({
     return {
       width: `${inputWidth.value}%`,
       top: topVal.value,
-      left: leftVal.value
+      left: leftVal.value,
     };
   });
 
@@ -191,22 +189,22 @@ const MapBoxAutocomplete = ({
 
             topVal.value = withTiming(-700, {
               duration: 1000,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             opacity.value = withTiming(1, {
               duration: 2000,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             inputWidth.value = withTiming(240, {
               duration: 2000,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             leftVal.value = withTiming(-80, {
               duration: 1500,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             setisTyping(true);
@@ -214,22 +212,22 @@ const MapBoxAutocomplete = ({
           onBlur={() => {
             topVal.value = withTiming(0, {
               duration: 500,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             opacity.value = withTiming(0, {
               duration: 200,
-              easing:Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             inputWidth.value = withTiming(200, {
               duration: 500,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
-              leftVal.value = withTiming(0, {
+            leftVal.value = withTiming(0, {
               duration: 500,
-              easing: Easing.inOut(Easing.cubic)
+              easing: Easing.inOut(Easing.cubic),
             });
 
             setisTyping(false);
@@ -290,7 +288,7 @@ const PathWise = () => {
   const [warningStatus, setWarningStatus] = useState('Checking...');
   const [darkMode, setDarkMode] = useState(false);
   const [textScale, setTextScale] = useState(1);
-  const [showSearchContainer, setShowSearchContainer] = useState(true)
+  const [showSearchContainer, setShowSearchContainer] = useState(true);
 
   const SchaumburgRegion = {
     latitude: 42.0334,
@@ -422,7 +420,7 @@ const PathWise = () => {
       console.log('Error in handlePlaceSelect:', err);
     }
     calculateETA();
-    Keyboard.dismiss
+    Keyboard.dismiss;
     setShowTransportOptions(true);
   };
 
@@ -431,7 +429,7 @@ const PathWise = () => {
     setTransportMethod(method);
     setShowTransportOptions(false);
     setShowRouteInfo(true);
-    setShowSearchContainer(false)
+    setShowSearchContainer(false);
     const eta = calculateETA(method);
   };
 
@@ -752,10 +750,10 @@ const PathWise = () => {
     };
   });
 
-  function endRoute(){
-    setShowRouteInfo(false)
-    setShowSearchContainer(true)
-    setSearchQuery(' ')
+  function endRoute() {
+    setShowRouteInfo(false);
+    setShowSearchContainer(true);
+    setSearchQuery(' ');
   }
 
   return (
@@ -776,83 +774,90 @@ const PathWise = () => {
                     strokeColor="#007AFF"
                     strokeWidth={4}
                   />
-                )}    
+                )}
               </MapView>
             </Pressable>
-          {showSearchContainer && (
-       <View
-              style={[
-                styles.searchContainer,
-                darkMode && styles.darkSearchContainer
-              ]}>
+            {showSearchContainer && (
+              <View
+                style={[
+                  styles.searchContainer,
+                  darkMode && styles.darkSearchContainer,
+                ]}>
                 <TouchableOpacity
                   style={styles.menuButton}
                   onPress={() => setIsMenuOpen(true)}>
                   <Text
-                style={styles.appTitle, [{ fontSize: 20 * textScale }]}>
-                PathWise
-                </Text>
+                    style={(styles.appTitle, [{ fontSize: 14 * textScale }])}>
+                    <Image
+                      style={{ width: 62, height: 62 }}
+                      source={require('./PathwiseLogoUnofficial.png')}
+                    />
+                  </Text>
                 </TouchableOpacity>
 
-              <MapBoxAutocomplete
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                onPlaceSelect={handlePlaceSelect}
-                darkMode={darkMode}
-                textScale={textScale}
-              />
+                <MapBoxAutocomplete
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  onPlaceSelect={handlePlaceSelect}
+                  darkMode={darkMode}
+                  textScale={textScale}
+                />
 
-              <Text
-          style={[
-            styles.creditsText,
-            darkMode && styles.darkText,
-            { fontSize: 12 * textScale },            
-          ]}>
-          Developed by: Hamdan Sheikh, Adrian Klos, Peter George
-        </Text>
                 <Text
-          style={[
-            styles.creditsText,
-            darkMode && styles.darkText,
-            { fontSize: 12 * textScale },
-          ]}>{'\n'}
-          Sidewalk data originally collected from: The Chicago Metropolitan Agency for Planning
-        </Text>
-          </View>
-          )}
-     
+                  style={[
+                    styles.creditsText,
+                    darkMode && styles.darkText,
+                    { fontSize: 9 * textScale },
+                  ]}>
+                  Developed by: Hamdan Sheikh, Adrian Klos, Peter George
+                  {'\n'} Sidewalk data originally collected from: The Chicago
+                  Metropolitan Agency for Planning
+                </Text>
+              </View>
+            )}
 
             {showTransportOptions && (
               <Animated.View
                 style={[
                   styles.transportOptions,
                   darkMode && styles.darkTransportOptions,
-                  animatetransportOptionsContainer
+                  animatetransportOptionsContainer,
                 ]}>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.walkingButton]}
                   onPress={() => handleTransportSelect('Walking')}
-                  onPressIn={() => transportoptionsContainerTopVal.value = withTiming(0,{duration: 3000})}>
+                  onPressIn={() =>
+                    (transportoptionsContainerTopVal.value = withTiming(0, {
+                      duration: 3000,
+                    }))
+                  }>
                   <Text
                     style={[
                       styles.transportButtonText,
                       { fontSize: 16 * textScale },
                     ]}>
-                    <WalkIcon size={30} color="white" />{"\n"}
-                    ETA: {calculateETA('Walking')} 
+                    <WalkIcon size={30} color="white" />
+                    {'\n'}
+                    ETA: {calculateETA('Walking')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.bikingButton]}
                   onPress={() => handleTransportSelect('Biking')}>
-                  onPressIn={() => transportoptionsContainerTopVal.value = withTiming(0,{duration: 3000})}
+                  onPressIn=
+                  {() =>
+                    (transportoptionsContainerTopVal.value = withTiming(0, {
+                      duration: 3000,
+                    }))
+                  }
                   <Text
                     style={[
                       styles.transportButtonText,
                       { fontSize: 16 * textScale },
                     ]}>
-                    <BikeIcon size={30} color="white" />{"\n"}
-                    ETA: {calculateETA('Biking')} 
+                    <BikeIcon size={30} color="white" />
+                    {'\n'}
+                    ETA: {calculateETA('Biking')}
                   </Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -915,8 +920,9 @@ const PathWise = () => {
                     {warningStatus}
                   </Text>
 
-                  <Pressable style={[styles.endRouteBtn]} onPress={endRoute}><Text>End route</Text></Pressable>
-      
+                  <Pressable style={[styles.endRouteBtn]} onPress={endRoute}>
+                    <Text>End route</Text>
+                  </Pressable>
                 </View>
               </Animated.View>
             )}
@@ -944,7 +950,46 @@ const PathWise = () => {
               styles.menuContainer,
               darkMode && styles.darkMenuContainer,
             ]}>
-            <MenuItems />
+            <Text
+              style={[
+                styles.settingsTitle,
+                darkMode && styles.darkText,
+                { fontSize: 24 * textScale },
+              ]}>
+              Settings
+            </Text>
+            <View style={styles.settingItem}>
+              <Text
+                style={[
+                  styles.settingLabel,
+                  darkMode && styles.darkText,
+                  { fontSize: 18 * textScale },
+                ]}>
+                Dark Mode
+              </Text>
+              <Switch
+                value={darkMode}
+                onValueChange={setDarkMode}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
+                thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
+              />
+            </View>
+            <View style={styles.settingItem}>
+              <Text
+                style={[
+                  styles.settingLabel,
+                  darkMode && styles.darkText,
+                  { fontSize: 18 * textScale },
+                ]}>
+                Large Text
+              </Text>
+              <Switch
+                value={textScale > 1}
+                onValueChange={(value) => setTextScale(value ? 1.3 : 1)}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
+                thumbColor={textScale > 1 ? '#f5dd4b' : '#f4f3f4'}
+              />
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -973,7 +1018,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 0,
     borderBottomColor: '#e0e0e0',
-    opacity: 0
+    opacity: 0,
   },
   darkHeader: {
     flexDirection: 'row',
@@ -990,23 +1035,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 120,
     left: '42%',
-    right: '40%'
+    right: '40%',
   },
   appTitle: {
     position: 'absolute',
-    left: '50',
+    left: 50,
+    top: 30,
     zIndex: 10,
-    fontSize: 16,
+    fontSize: 2,
     color: '#333',
   },
   darkText: {
-    color: '#fff',
+    color: 'white',
   },
-  endRouteBtn:{
+  endRouteBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#dc143c',
+    backgroundColor: '#c23b22',
+    color: 'white',
     padding: 8,
     position: 'absolute',
     top: 50,
@@ -1038,7 +1085,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   darkSearchContainer: {
-    backgroundColor: '#2d2d2d',
+    backgroundColor: '#100c08',
+    color: 'white',
   },
   autocompleteContainer: {
     flex: 1,
@@ -1060,9 +1108,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   darkSearchInput: {
-    borderColor: '#444',
-    backgroundColor: '#333',
-    color: '#fff',
+    borderColor: 'grey',
+    backgroundColor: '#100c08',
+    color: 'white',
   },
   loadingText: {
     position: 'absolute',
@@ -1097,7 +1145,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   darkSuggestionsList: {
-    backgroundColor: '#2d2d2d',
+    backgroundColor: '#100c08',
   },
   suggestionItem: {
     padding: 20,
@@ -1178,7 +1226,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   darkRouteInfo: {
-    backgroundColor: 'rgba(45, 45, 45, 0.95)',
+    backgroundColor: '#100c08',
   },
   routeDetail: {
     flexDirection: 'row',
@@ -1195,25 +1243,32 @@ const styles = StyleSheet.create({
   },
   menuOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   menuContainer: {
+    position: 'absolute',
+    top: 500,
+    left: 50,
+    borderRadius: 8,
     width: width * 0.7,
-    height: '100%',
+    height: '40%',
     backgroundColor: '#fff',
   },
   darkMenuContainer: {
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#100c08',
   },
   menuContent: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 15
   },
   darkMenuContent: {
     backgroundColor: '#1e1e1e',
   },
   menuItem: {
-    paddingVertical: 15,
+    paddingVertical: 8,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -1221,22 +1276,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
   },
   activeMenuItem: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: '#1b1b1b',
+    color: '#fff',
   },
   menuText: {
     fontSize: 18,
     color: '#333',
-  },
-  tabContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  tabTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
   },
   creditsContainer: {
     flex: 1,
@@ -1258,7 +1303,7 @@ const styles = StyleSheet.create({
   },
   creditsText: {
     opacity: 0.5,
-    textAlign:'center',
+    textAlign: 'center',
     fontWeight: 'light',
     fontSize: 16,
     marginBottom: 8,
@@ -1266,7 +1311,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 150,
     left: 50,
-    right: 50
+    right: 50,
   },
   settingsContainer: {
     flex: 1,
