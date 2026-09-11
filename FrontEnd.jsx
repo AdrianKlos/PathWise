@@ -28,6 +28,10 @@ const { width, height } = Dimensions.get('window');
 const GEOJSON_URL =
   'https://drive.google.com/uc?export=download&id=1ZvmOYJsHcY3jBJbbLaGyiWFSA7V-OAIY';
 
+
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
+
 // Global variable
 let suggestionsShown = true;
 
@@ -187,7 +191,7 @@ const MapBoxAutocomplete = ({
             if (searchQuery.length > 2 && suggestionsShown)
               setShowSuggestions(true);
 
-            topVal.value = withTiming(-700, {
+            topVal.value = withTiming(-400, {
               duration: 1000,
               easing: Easing.inOut(Easing.cubic),
             });
@@ -197,7 +201,7 @@ const MapBoxAutocomplete = ({
               easing: Easing.inOut(Easing.cubic),
             });
 
-            inputWidth.value = withTiming(240, {
+            inputWidth.value = withTiming(267, {
               duration: 2000,
               easing: Easing.inOut(Easing.cubic),
             });
@@ -700,8 +704,8 @@ const PathWise = () => {
         <Switch
           value={darkMode}
           onValueChange={setDarkMode}
-          trackColor={{ false: '#767577', true: '#81b0ff' }}
-          thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
+          trackColor={{ false: '#049F76', true: '#f4f3f4' }}
+          thumbColor={darkMode ? '#049F76' : '#f4f3f4'}
         />
       </View>
       <View style={styles.settingItem}>
@@ -716,8 +720,8 @@ const PathWise = () => {
         <Switch
           value={textScale > 1}
           onValueChange={(value) => setTextScale(value ? 1.3 : 1)}
-          trackColor={{ false: '#767577', true: '#81b0ff' }}
-          thumbColor={textScale > 1 ? '#f5dd4b' : '#f4f3f4'}
+          trackColor={{ false: '#049F76', true: '#f4f3f4' }}
+          thumbColor={textScale > 1 ? '#049F76' : '#f4f3f4'}
         />
       </View>
     </View>
@@ -754,6 +758,8 @@ const PathWise = () => {
     setShowRouteInfo(false);
     setShowSearchContainer(true);
     setSearchQuery(' ');
+    setPointB(null)
+    setRouteCoordinates([])
   }
 
   return (
@@ -810,7 +816,7 @@ const PathWise = () => {
                     { fontSize: 9 * textScale },
                   ]}>
                   Developed by: Hamdan Sheikh, Adrian Klos, Peter George
-                  {'\n'} Sidewalk data originally collected from: The Chicago
+                  {'\n'} Sidewalk data originally collected from: {'\n'} The Chicago
                   Metropolitan Agency for Planning
                 </Text>
               </View>
@@ -821,16 +827,10 @@ const PathWise = () => {
                 style={[
                   styles.transportOptions,
                   darkMode && styles.darkTransportOptions,
-                  animatetransportOptionsContainer,
                 ]}>
                 <TouchableOpacity
                   style={[styles.transportButton, styles.walkingButton]}
-                  onPress={() => handleTransportSelect('Walking')}
-                  onPressIn={() =>
-                    (transportoptionsContainerTopVal.value = withTiming(0, {
-                      duration: 3000,
-                    }))
-                  }>
+                  onPress={() => handleTransportSelect('Walking')}>
                   <Text
                     style={[
                       styles.transportButtonText,
@@ -844,12 +844,6 @@ const PathWise = () => {
                 <TouchableOpacity
                   style={[styles.transportButton, styles.bikingButton]}
                   onPress={() => handleTransportSelect('Biking')}>
-                  onPressIn=
-                  {() =>
-                    (transportoptionsContainerTopVal.value = withTiming(0, {
-                      duration: 3000,
-                    }))
-                  }
                   <Text
                     style={[
                       styles.transportButtonText,
@@ -921,7 +915,7 @@ const PathWise = () => {
                   </Text>
 
                   <Pressable style={[styles.endRouteBtn]} onPress={endRoute}>
-                    <Text>End route</Text>
+                    <Text style={{color: 'white'}}>End route</Text>
                   </Pressable>
                 </View>
               </Animated.View>
@@ -1033,14 +1027,14 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     position: 'absolute',
-    top: 120,
-    left: '42%',
+    top: 82,
+    left: '45%',
     right: '40%',
   },
   appTitle: {
     position: 'absolute',
     left: 50,
-    top: 30,
+    top: 300,
     zIndex: 10,
     fontSize: 2,
     color: '#333',
@@ -1052,18 +1046,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#c23b22',
-    color: 'white',
+    backgroundColor: '#bc0f38',
     padding: 8,
     position: 'absolute',
     top: 50,
-    left: 142,
+    left: 115,
     marginHorizontal: 10,
-    shadowColor: 'red',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.8,
     opacity: 1,
-    shadowRadius: 12,
   },
   content: {
     flex: 1,
@@ -1074,15 +1063,25 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     position: 'absolute',
-    top: 700,
+    top: 690,
+    width: '100%',
     left: 0,
     right: 0,
-    paddingVertical: 85,
+    paddingVertical: 105,
     flexDirection: 'column',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderTopLeftRadius: 58,
+    borderTopRightRadius: 58,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 0,
     padding: 8,
     elevation: 1,
+    shadowColor: 'black',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.3,
+    opacity: 1,
+    shadowRadius: 5,
+  
   },
   darkSearchContainer: {
     backgroundColor: '#100c08',
@@ -1096,7 +1095,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   searchInput: {
-    top: -40,
+    top: -90,
     borderWidth: 2,
     borderColor: '#ddd',
     borderRadius: 24,
@@ -1167,17 +1166,17 @@ const styles = StyleSheet.create({
   },
   transportOptions: {
     position: 'absolute',
-    top: 700,
-    left: 20,
-    right: 20,
+    top: 460,
+    left: 45,
+    right: 45,
     flexDirection: 'row',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    padding: 10,
+    backgroundColor: 'rgba(253, 253, 253, 0.6)',
+    borderRadius: 56,
+    padding: 56,
     elevation: 3,
     shadowColor: 'black',
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.3,
     opacity: 1,
     shadowRadius: 5,
@@ -1187,7 +1186,7 @@ const styles = StyleSheet.create({
   },
   transportButton: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 15,
     borderRadius: 20,
     marginHorizontal: 10,
     shadowColor: 'blue',
@@ -1197,14 +1196,15 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   walkingButton: {
-    backgroundColor: '#4DA6FF',
+    backgroundColor: '#336a9e',
   },
   bikingButton: {
-    backgroundColor: '#4DA6FF',
+    backgroundColor: '#336a9e',
   },
   transportButtonText: {
+    padding: 14,
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '200',
   },
   routeInfo: {
     position: 'absolute',
@@ -1213,11 +1213,14 @@ const styles = StyleSheet.create({
     right: 0,
     width: '100%',
     height: '50%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderTopLeftRadius: 58,
+    borderTopRightRadius: 58,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 0,
+    paddingVertical: 24,
     borderBottomWidth: 0,
-    padding: 15,
+    padding: 35,
     elevation: 1,
     shadowColor: 'black',
     shadowOffset: { width: 0, height: -12 },
@@ -1235,11 +1238,12 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   routeLabel: {
-    fontWeight: '600',
+    fontWeight: '400',
     color: '#333',
   },
   routeValue: {
     color: '#666',
+    fontWeight: 300,
   },
   menuOverlay: {
     flex: 1,
@@ -1315,11 +1319,13 @@ const styles = StyleSheet.create({
   },
   settingsContainer: {
     flex: 1,
-    padding: 20,
+    padding: 12,
+    borderRadius: 24,
   },
   settingsTitle: {
+    paddingVertical: 14,
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '400',
     marginBottom: 30,
     textAlign: 'center',
   },
@@ -1327,13 +1333,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 45,
+    paddingHorizontal: 45,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   settingLabel: {
+    paddingVertical: 14,
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '200',
   },
 });
 
