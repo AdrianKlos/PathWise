@@ -158,17 +158,6 @@ const MapBoxAutocomplete = ({
     };
   });
 
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-  // is this good?
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-  // DO NOT TOUCH MY WORK
-
   const [isTyping, setisTyping] = useState(false);
   // ENTER DESTINATION BOX ON TOP
   return (
