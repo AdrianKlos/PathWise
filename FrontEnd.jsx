@@ -159,6 +159,7 @@ const MapBoxAutocomplete = ({
   });
 
   const [isTyping, setisTyping] = useState(false);
+  const [placeHolder, setPlaceHolder] = useState(true)
   // ENTER DESTINATION BOX ON TOP
   return (
     <View style={styles.autocompleteContainer}>
@@ -169,7 +170,7 @@ const MapBoxAutocomplete = ({
             darkMode && styles.darkSearchInput,
             { fontSize: 16 * textScale },
           ]}
-          placeholder="Where would you like to go?"
+          placeholder={placeHolder ? "Where would you like to go?" : " "}
           placeholderTextColor={darkMode ? '#ccc' : '#666'}
           value={searchQuery}
           onChangeText={(text) => {
@@ -199,7 +200,7 @@ const MapBoxAutocomplete = ({
               duration: 1500,
               easing: Easing.inOut(Easing.cubic),
             });
-
+            
             setisTyping(true);
           }}
           onBlur={() => {
@@ -222,7 +223,8 @@ const MapBoxAutocomplete = ({
               duration: 500,
               easing: Easing.inOut(Easing.cubic),
             });
-
+            
+            setPlaceHolder(true)
             setisTyping(false);
 
             setTimeout(() => setShowSuggestions(false), 100);
@@ -413,6 +415,7 @@ const PathWise = () => {
       console.log('Error in handlePlaceSelect:', err);
     }
     calculateETA();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Keyboard.dismiss;
     setShowTransportOptions(true);
   };
@@ -671,51 +674,6 @@ const PathWise = () => {
     </View>
   );
 
-  const SettingsContent = () => (
-    <View style={styles.settingsContainer}>
-      <Text
-        style={[
-          styles.settingsTitle,
-          darkMode && styles.darkText,
-          { fontSize: 24 * textScale },
-        ]}>
-        Settings
-      </Text>
-      <View style={styles.settingItem}>
-        <Text
-          style={[
-            styles.settingLabel,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Dark Mode
-        </Text>
-        <Switch
-          value={darkMode}
-          onValueChange={setDarkMode}
-          trackColor={{ false: '#049F76', true: '#f4f3f4' }}
-          thumbColor={darkMode ? '#049F76' : '#f4f3f4'}
-        />
-      </View>
-      <View style={styles.settingItem}>
-        <Text
-          style={[
-            styles.settingLabel,
-            darkMode && styles.darkText,
-            { fontSize: 18 * textScale },
-          ]}>
-          Large Text
-        </Text>
-        <Switch
-          value={textScale > 1}
-          onValueChange={(value) => setTextScale(value ? 1.3 : 1)}
-          trackColor={{ false: '#049F76', true: '#f4f3f4' }}
-          thumbColor={textScale > 1 ? '#049F76' : '#f4f3f4'}
-        />
-      </View>
-    </View>
-  );
-
   function BikeIcon({ size = 38, color = '#000000' }) {
     return (
       <Svg width={size} height={size} viewBox="0 -3 38 38" fill={color}>
@@ -744,6 +702,7 @@ const PathWise = () => {
   });
 
   function endRoute() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowRouteInfo(false);
     setShowSearchContainer(true);
     setSearchQuery(' ');
@@ -953,8 +912,8 @@ const PathWise = () => {
               <Switch
                 value={darkMode}
                 onValueChange={setDarkMode}
-                trackColor={{ false: '#767577', true: '#81b0ff' }}
-                thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
+                trackColor={{ false: '#049F76', true: '#f4f3f4' }}
+                thumbColor={darkMode ? '#049F76' : '#f4f3f4'}
               />
             </View>
             <View style={styles.settingItem}>
@@ -969,8 +928,8 @@ const PathWise = () => {
               <Switch
                 value={textScale > 1}
                 onValueChange={(value) => setTextScale(value ? 1.3 : 1)}
-                trackColor={{ false: '#767577', true: '#81b0ff' }}
-                thumbColor={textScale > 1 ? '#f5dd4b' : '#f4f3f4'}
+                trackColor={{ false: '#049F76', true: '#f4f3f4' }}
+                thumbColor={darkMode ? '#049F76' : '#f4f3f4'}
               />
             </View>
           </View>
@@ -987,7 +946,7 @@ const styles = StyleSheet.create({
   },
   darkContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#1e1d1d',
   },
   header: {
     flexDirection: 'column',
@@ -1073,7 +1032,7 @@ const styles = StyleSheet.create({
   
   },
   darkSearchContainer: {
-    backgroundColor: '#100c08',
+    backgroundColor: 'rgba(21, 19, 19, 0.85)',
     color: 'white',
   },
   autocompleteContainer: {
@@ -1097,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   darkSearchInput: {
     borderColor: 'grey',
-    backgroundColor: '#100c08',
+    backgroundColor: '#161514',
     color: 'white',
   },
   loadingText: {
@@ -1116,7 +1075,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderTopWidth: 0,
     borderColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderRadius: 12,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1133,7 +1092,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   darkSuggestionsList: {
-    backgroundColor: '#100c08',
+    backgroundColor: 'rgb(26, 24, 24, 0.85)',
   },
   suggestionItem: {
     padding: 20,
@@ -1160,7 +1119,7 @@ const styles = StyleSheet.create({
     right: 45,
     flexDirection: 'row',
     justifyContent: 'center',
-    backgroundColor: 'rgba(253, 253, 253, 0.6)',
+    backgroundColor: 'rgba(253, 253, 253, 0.85)',
     borderRadius: 56,
     padding: 56,
     elevation: 3,
@@ -1171,7 +1130,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   darkTransportOptions: {
-    backgroundColor: 'rgba(45, 45, 45, 0.95)',
+    backgroundColor: 'rgb(26, 24, 24, 0.85)',
   },
   transportButton: {
     paddingHorizontal: 20,
@@ -1185,10 +1144,10 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   walkingButton: {
-    backgroundColor: '#336a9e',
+    backgroundColor: '#197ddaf1',
   },
   bikingButton: {
-    backgroundColor: '#336a9e',
+    backgroundColor: '#197ddaf1',
   },
   transportButtonText: {
     padding: 14,
@@ -1323,7 +1282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 45,
-    paddingHorizontal: 45,
+    paddingHorizontal: 40,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
