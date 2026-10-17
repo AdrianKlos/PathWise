@@ -763,7 +763,7 @@ const PathWise = () => {
                     darkMode && styles.darkText,
                     { fontSize: 9 * textScale },
                   ]}>
-                  Developed by: Hamdan Sheikh, Adrian Klos, Peter George
+                  Developed by: Adrian Klos, Hamdan Sheikh, and Peter George
                   {'\n'} Sidewalk data originally collected from: {'\n'} The Chicago
                   Metropolitan Agency for Planning
                 </Text>
